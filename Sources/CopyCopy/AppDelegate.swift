@@ -53,7 +53,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(NSMenuItem(title: "Nothing copied yet", action: nil, keyEquivalent: ""))
         }
         if let error = store.errorMessage ?? hotKeyError {
-            menu.addItem(NSMenuItem(title: rowTitle(error, limit: 40), action: nil, keyEquivalent: ""))
+            let item = NSMenuItem(title: rowTitle(error, limit: 40), action: nil, keyEquivalent: "")
+            item.toolTip = error
+            menu.addItem(item)
         }
         menu.addItem(.separator())
         add("Clear history", action: #selector(clearHistory), to: menu).isEnabled = !store.items.isEmpty
