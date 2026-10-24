@@ -30,4 +30,4 @@ if [[ -f "$COPYCOPY_HEADERS/module.modulemap" && -f "$COPYCOPY_HEADERS/bridging.
     COPYCOPY_FLAGS=(-Xswiftc -vfsoverlay -Xswiftc "$COPYCOPY_OVERLAY")
 fi
 
-exec swift "$@" --package-path "$COPYCOPY_ROOT" "${COPYCOPY_FLAGS[@]}"
+exec swift "$@" --package-path "$COPYCOPY_ROOT" ${COPYCOPY_FLAGS[@]+"${COPYCOPY_FLAGS[@]}"}

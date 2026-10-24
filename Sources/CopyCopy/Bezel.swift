@@ -86,13 +86,7 @@ final class BezelController: NSObject, NSWindowDelegate {
         material.wantsLayer = true
         material.layer?.cornerRadius = 26
         material.layer?.masksToBounds = true
-        material.layer?.borderWidth = 0.5
-        material.layer?.borderColor = NSColor.white.withAlphaComponent(0.23).cgColor
-        let content = NSHostingView(rootView: BezelView(state: state, store: store) { [weak self] index in
-            guard let self else { return }
-            self.state.selection = index
-            self.select()
-        })
+        let content = NSHostingView(rootView: BezelView(state: state, store: store))
         content.frame = material.bounds
         content.autoresizingMask = [.width, .height]
         material.addSubview(content)
@@ -177,7 +171,6 @@ final class BezelController: NSObject, NSWindowDelegate {
 private struct BezelView: View {
     @ObservedObject var state: BezelState
     let store: HistoryStore
-    let choose: (Int) -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -195,7 +188,6 @@ private struct BezelView: View {
                                 ForEach(Array(state.items.enumerated()), id: \.element.id) { index, item in
                                     ClipCard(item: item, imageURL: store.imageURL(for: item), selected: state.selection == index)
                                         .id(index)
-                                        .onTapGesture { choose(index) }
                                 }
                             }
                             .padding(.horizontal, max(24, (geometry.size.width - 236) / 2))
@@ -217,7 +209,7 @@ private struct BezelView: View {
                         .onChange(of: state.items) { _, _ in proxy.scrollTo(0, anchor: .center) }
                         .onAppear { proxy.scrollTo(state.selection, anchor: .center) }
                     }
-                    .frame(height: 214)
+                    .frame(height: 220)
                 }
                 Text(state.items.isEmpty ? "0 of 0" : "\(state.selection + 1) of \(state.items.count)")
                     .font(.system(size: 12, weight: .medium, design: .monospaced))
@@ -272,15 +264,14 @@ private struct ClipCard: View {
             }
         }
         .frame(width: 236, height: 184)
-        .background(.white.opacity(selected ? 0.085 : 0.035))
+        .background(.white.opacity(0.05))
         .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.white.opacity(selected ? 0.45 : 0.1), lineWidth: 0.7))
-        .shadow(color: .black.opacity(selected ? 0.25 : 0), radius: 12, y: 8)
-        .offset(y: selected ? -6 : 0)
-        .opacity(selected ? 1 : 0.65)
+        .shadow(color: .black.opacity(0.18), radius: 10, y: 6)
+        .scaleEffect(selected ? 1.18 : 0.92)
+        .opacity(selected ? 1 : 0.6)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(item.label)
-        .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)
+        .accessibilityAddTraits(selected ? .isSelected : [])
         .onAppear { loadThumbnail() }
         .onDisappear { thumbnail = nil }
     }

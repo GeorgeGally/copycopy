@@ -181,6 +181,81 @@ struct HistoryTests {
         #expect(!state.consumeWrap())
     }
 
+    @Test func failedRegistrationKeepsTheOldShortcut() throws {
+        UserDefaults.standard.removeObject(forKey: Shortcut.defaultsKey)
+        defer { UserDefaults.standard.removeObject(forKey: Shortcut.defaultsKey) }
+        let first = HotKey()
+        let second = HotKey()
+        let custom = Shortcut(keyCode: UInt32(kVK_ANSI_J), modifiers: [.control, .option, .shift])
+        let other = Shortcut(keyCode: UInt32(kVK_ANSI_K), modifiers: [.control, .option, .shift])
+        defer {
+            first.unregister()
+            second.unregister()
+        }
+        #expect(first.register(custom) == noErr)
+        #expect(first.shortcut == custom)
+        #expect(second.register(other) == noErr)
+        #expect(second.register(custom) != noErr)
+        #expect(second.shortcut == other)
+        #expect(Shortcut.stored() == other)
+    }
+
+    @Test func preferencesRecordsAndCancelsShortcut() throws {
+        UserDefaults.standard.removeObject(forKey: Shortcut.defaultsKey)
+        defer { UserDefaults.standard.removeObject(forKey: Shortcut.defaultsKey) }
+        let hotKey = HotKey()
+        defer { hotKey.unregister() }
+        let preferences = PreferencesController(hotKey: hotKey)
+        preferences.show()
+        let window = try #require(NSApp.windows.first { $0.title == "Preferences" && $0.isVisible })
+        defer { window.close() }
+        let field = try #require(window.contentView?.subviews.compactMap { $0 as? ShortcutField }.first)
+        let click = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: .zero, modifierFlags: [],
+                                                    timestamp: 0, windowNumber: window.windowNumber, context: nil,
+                                                    eventNumber: 1, clickCount: 1, pressure: 1))
+        field.mouseDown(with: click)
+        #expect(field.isRecording)
+
+        let capture = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero,
+                                                    modifierFlags: [.command, .option, .control], timestamp: 0,
+                                                    windowNumber: window.windowNumber, context: nil,
+                                                    characters: "j", charactersIgnoringModifiers: "j",
+                                                    isARepeat: false, keyCode: UInt16(kVK_ANSI_J)))
+        field.keyDown(with: capture)
+        let custom = Shortcut(keyCode: UInt32(kVK_ANSI_J), modifiers: [.command, .option, .control])
+        #expect(hotKey.shortcut == custom)
+        #expect(Shortcut.stored() == custom)
+        #expect(!field.isRecording)
+
+        field.mouseDown(with: click)
+        #expect(field.isRecording)
+        let escape = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+                                                   windowNumber: window.windowNumber, context: nil,
+                                                   characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}",
+                                                   isARepeat: false, keyCode: UInt16(kVK_Escape)))
+        field.keyDown(with: escape)
+        #expect(!field.isRecording)
+        #expect(hotKey.shortcut == custom)
+    }
+
+    @Test func bezelOpensAndWrapsPastBothEnds() throws {
+        let path = directory()
+        defer { try? FileManager.default.removeItem(at: path) }
+        let store = HistoryStore(directory: path)
+        for text in ["one", "two", "three"] { store.recordText(text) }
+        let bezel = BezelController(store: store)
+        bezel.show(items: store.items, frontApp: nil)
+        #expect(bezel.isOpen)
+        bezel.state.step(-1)
+        #expect(bezel.state.selection == 2)
+        #expect(bezel.state.consumeWrap())
+        bezel.state.step(1)
+        #expect(bezel.state.selection == 0)
+        #expect(bezel.state.consumeWrap())
+        bezel.dismiss()
+        #expect(!bezel.isOpen)
+    }
+
     @Test func shortcutRoundTripsThroughUserDefaults() throws {
         let name = "CopyCopyTests-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: name))
