@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 import Testing
 @testable import CopyCopy
 
@@ -171,10 +172,28 @@ struct HistoryTests {
         state.items = (0..<3).map { HistoryItem(id: "\($0)", content: .text("\($0)"), copiedAt: Date()) }
         state.step(-1)
         #expect(state.selection == 2)
+        #expect(state.consumeWrap())
         state.step(1)
         #expect(state.selection == 0)
+        #expect(state.consumeWrap())
         state.step(1)
         #expect(state.selected?.content == .text("1"))
+        #expect(!state.consumeWrap())
+    }
+
+    @Test func shortcutRoundTripsThroughUserDefaults() throws {
+        let name = "CopyCopyTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        #expect(Shortcut.stored(in: defaults) == .standard)
+        let custom = Shortcut(keyCode: UInt32(kVK_ANSI_J), modifiers: [.command, .shift])
+        #expect(custom.carbonModifiers == UInt32(cmdKey | shiftKey))
+        #expect(Shortcut(keyCode: UInt32(kVK_Space), modifiers: [.command, .shift]).title == "⇧⌘Space")
+        #expect(Shortcut(keyCode: UInt32(kVK_Space), modifiers: [.command, .shift]).words == "Shift Command Space")
+        custom.store(in: defaults)
+        #expect(defaults.string(forKey: Shortcut.defaultsKey) == custom.storedValue)
+        #expect(Shortcut.stored(in: defaults) == custom)
+        #expect(Shortcut(storedValue: "not a shortcut") == nil)
     }
 
     private func imageData() throws -> Data {

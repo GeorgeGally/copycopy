@@ -7,14 +7,24 @@ import SwiftUI
 final class BezelState: ObservableObject {
     @Published var items: [HistoryItem] = []
     @Published var selection = 0
+    private var wrapped = false
 
     var selected: HistoryItem? { items.indices.contains(selection) ? items[selection] : nil }
 
     func step(_ direction: Int) {
         guard !items.isEmpty else { return }
+        let next = (selection + direction + items.count) % items.count
+        wrapped = items.count > 1 && next != selection
+            && (direction > 0 ? next < selection : next > selection)
+        if wrapped { NSLog("CopyCopy selection wrapped %d -> %d", selection, next) }
         withAnimation(.spring(response: 0.26, dampingFraction: 0.88)) {
-            selection = (selection + direction + items.count) % items.count
+            selection = next
         }
+    }
+
+    func consumeWrap() -> Bool {
+        defer { wrapped = false }
+        return wrapped
     }
 }
 
@@ -194,8 +204,14 @@ private struct BezelView: View {
                         }
                         .scrollIndicators(.hidden)
                         .onChange(of: state.selection) { _, selected in
-                            withAnimation(reduceMotion ? nil : .spring(response: 0.26, dampingFraction: 0.88)) {
-                                proxy.scrollTo(selected, anchor: .center)
+                            if state.consumeWrap() {
+                                var transaction = Transaction()
+                                transaction.disablesAnimations = true
+                                withTransaction(transaction) { proxy.scrollTo(selected, anchor: .center) }
+                            } else {
+                                withAnimation(reduceMotion ? nil : .spring(response: 0.26, dampingFraction: 0.88)) {
+                                    proxy.scrollTo(selected, anchor: .center)
+                                }
                             }
                         }
                         .onChange(of: state.items) { _, _ in proxy.scrollTo(0, anchor: .center) }

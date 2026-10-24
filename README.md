@@ -3,7 +3,7 @@
 A macOS menu-bar clipboard history with text, images and files, opened by a
 Jumpcut-style sticky bezel.
 
-Hotkey: Command + Option + Control + V.
+Hotkey: Command + Option + Control + V. Change it in Preferences.
 
 ## Build
 
@@ -22,16 +22,21 @@ in the menu bar and does not appear in the Dock.
 - Press Command + Option + Control + V to open history on the active screen.
 - Press V, Right, or Down to move to an older item. Shift + V, Shift + Right,
   Left, or Up moves back. The shortcut also cycles while the bezel is open.
+  Stepping past the newest or oldest item moves to the other end without the
+  long slide back.
 - Press Return to copy the selected item and paste into the app you were using.
 - Press Escape to dismiss. Releasing the shortcut modifiers leaves the bezel open.
-- Click the menu-bar icon for the 20 most recent items, Clear history, and Quit.
+- Click the menu-bar icon for the 20 most recent items, Clear history,
+  Preferences, and Quit. Preferences records a new shortcut when you click the
+  field and press a combination. Escape cancels. If another app owns the
+  combination, the old shortcut is kept and a message appears.
 
 The first paste offers Accessibility access if macOS has not granted it. The
 item is already on the clipboard, so Command + V works without that permission.
 The offer appears once. To grant access later, open System Settings > Privacy &
 Security > Accessibility and add CopyCopy. A freshly rebuilt ad-hoc signed app
 may need to be added again. If another clipboard app owns the shortcut, quit it
-and relaunch CopyCopy.
+and relaunch CopyCopy, or record a different shortcut in Preferences.
 
 ## Storage
 

@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private lazy var watcher = ClipboardWatcher(store: store)
     private lazy var bezel = BezelController(store: store)
     private let hotKey = HotKey()
+    private lazy var preferences = PreferencesController(hotKey: hotKey)
     private var statusItem: NSStatusItem?
     private var pasteTarget: NSRunningApplication?
     private var hotKeyError: String?
@@ -25,10 +26,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem = status
         bezel.onSelect = { [weak self] in self?.paste($0) }
         hotKey.onPress = { [weak self] in self?.showBezel() }
+        preferences.onChange = { [weak self] in self?.hotKeyError = nil }
         let result = hotKey.register()
         NSLog("CopyCopy hotkey registration status: %d", result)
         if result != noErr {
-            hotKeyError = "Shortcut unavailable. Quit another app using ⌃⌥⌘V and reopen CopyCopy."
+            hotKeyError = "Shortcut unavailable. Quit another app using \(hotKey.shortcut.title) and reopen CopyCopy."
         }
         watcher.start()
     }
@@ -41,30 +43,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         pasteTarget = NSWorkspace.shared.frontmostApplication
         menu.removeAllItems()
-        add("Open history", action: #selector(openFromMenu), to: menu)
+        menu.minimumWidth = 300
+        add("Open history  \(hotKey.shortcut.title)", action: #selector(openFromMenu), to: menu)
         menu.addItem(.separator())
         for item in store.items.prefix(20) {
-            let entry = add(item.label, action: #selector(selectFromMenu(_:)), to: menu)
-            entry.representedObject = item.id
-            switch item.content {
-            case .text: entry.image = NSImage(systemSymbolName: "text.alignleft", accessibilityDescription: nil)
-            case .image: entry.image = NSImage(systemSymbolName: "photo", accessibilityDescription: nil)
-            case .files: entry.image = NSImage(systemSymbolName: "doc", accessibilityDescription: nil)
-            }
-            entry.image?.size = NSSize(width: 16, height: 16)
+            add(rowTitle(for: item), action: #selector(selectFromMenu(_:)), to: menu).representedObject = item.id
         }
         if store.items.isEmpty {
-            let empty = NSMenuItem(title: "Nothing copied yet", action: nil, keyEquivalent: "")
-            menu.addItem(empty)
+            menu.addItem(NSMenuItem(title: "Nothing copied yet", action: nil, keyEquivalent: ""))
         }
         if let error = store.errorMessage ?? hotKeyError {
-            menu.addItem(.separator())
-            menu.addItem(NSMenuItem(title: error, action: nil, keyEquivalent: ""))
+            menu.addItem(NSMenuItem(title: rowTitle(error, limit: 40), action: nil, keyEquivalent: ""))
         }
         menu.addItem(.separator())
         add("Clear history", action: #selector(clearHistory), to: menu).isEnabled = !store.items.isEmpty
-        menu.addItem(.separator())
+        add("Preferences…", action: #selector(openPreferences), to: menu)
         add("Quit CopyCopy", action: #selector(quit), to: menu)
+    }
+
+    private func rowTitle(for item: HistoryItem, limit: Int = 40) -> String {
+        let text: String
+        switch item.content {
+        case .image(_, let bytes):
+            text = "Image \(ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file))"
+        default:
+            text = item.label
+        }
+        return rowTitle(text, limit: limit)
+    }
+
+    private func rowTitle(_ text: String, limit: Int) -> String {
+        let line = text.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
+        guard line.count > limit else { return line }
+        return String(line.prefix(limit)) + "…"
     }
 
     private func showBezel() {
@@ -148,5 +159,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func clearHistory() { store.clear() }
+    @objc private func openPreferences() { preferences.show() }
     @objc private func quit() { NSApp.terminate(nil) }
 }
