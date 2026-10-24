@@ -1,0 +1,152 @@
+import AppKit
+import ApplicationServices
+import Carbon.HIToolbox
+
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+    private let store = HistoryStore()
+    private lazy var watcher = ClipboardWatcher(store: store)
+    private lazy var bezel = BezelController(store: store)
+    private let hotKey = HotKey()
+    private var statusItem: NSStatusItem?
+    private var pasteTarget: NSRunningApplication?
+    private var hotKeyError: String?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.setActivationPolicy(.accessory)
+        NSLog("CopyCopy history loaded: %d items", store.items.count)
+        let status = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        status.button?.image = NSImage(systemSymbolName: "square.on.square", accessibilityDescription: "CopyCopy")
+        status.button?.toolTip = "CopyCopy"
+        status.button?.setAccessibilityLabel("CopyCopy")
+        let menu = NSMenu()
+        menu.delegate = self
+        status.menu = menu
+        statusItem = status
+        bezel.onSelect = { [weak self] in self?.paste($0) }
+        hotKey.onPress = { [weak self] in self?.showBezel() }
+        let result = hotKey.register()
+        NSLog("CopyCopy hotkey registration status: %d", result)
+        if result != noErr {
+            hotKeyError = "Shortcut unavailable. Quit another app using ⌃⌥⌘V and reopen CopyCopy."
+        }
+        watcher.start()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        watcher.stop()
+        hotKey.unregister()
+    }
+
+    func menuWillOpen(_ menu: NSMenu) {
+        pasteTarget = NSWorkspace.shared.frontmostApplication
+        menu.removeAllItems()
+        add("Open history", action: #selector(openFromMenu), to: menu)
+        menu.addItem(.separator())
+        for item in store.items.prefix(20) {
+            let entry = add(item.label, action: #selector(selectFromMenu(_:)), to: menu)
+            entry.representedObject = item.id
+            switch item.content {
+            case .text: entry.image = NSImage(systemSymbolName: "text.alignleft", accessibilityDescription: nil)
+            case .image: entry.image = NSImage(systemSymbolName: "photo", accessibilityDescription: nil)
+            case .files: entry.image = NSImage(systemSymbolName: "doc", accessibilityDescription: nil)
+            }
+            entry.image?.size = NSSize(width: 16, height: 16)
+        }
+        if store.items.isEmpty {
+            let empty = NSMenuItem(title: "Nothing copied yet", action: nil, keyEquivalent: "")
+            menu.addItem(empty)
+        }
+        if let error = store.errorMessage ?? hotKeyError {
+            menu.addItem(.separator())
+            menu.addItem(NSMenuItem(title: error, action: nil, keyEquivalent: ""))
+        }
+        menu.addItem(.separator())
+        add("Clear history", action: #selector(clearHistory), to: menu).isEnabled = !store.items.isEmpty
+        menu.addItem(.separator())
+        add("Quit CopyCopy", action: #selector(quit), to: menu)
+    }
+
+    private func showBezel() {
+        if !bezel.isOpen { pasteTarget = NSWorkspace.shared.frontmostApplication }
+        watcher.poll()
+        bezel.show(items: store.items, frontApp: pasteTarget)
+    }
+
+    @objc private func openFromMenu() {
+        // Let menu tracking end before making the non-activating panel key.
+        DispatchQueue.main.async { [weak self] in self?.showBezel() }
+    }
+
+    @objc private func selectFromMenu(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String, let item = store.items.first(where: { $0.id == id }) else { return }
+        DispatchQueue.main.async { [weak self] in self?.paste(item) }
+    }
+
+    private func paste(_ item: HistoryItem) {
+        do {
+            try watcher.restore(item)
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = "Could not copy this item"
+            alert.informativeText = error.localizedDescription
+            alert.runModal()
+            return
+        }
+        guard AXIsProcessTrusted() else {
+            offerAccessibilityOnce()
+            return
+        }
+        guard let target = pasteTarget, !target.isTerminated else { return }
+        sendPaste(to: target, attemptsRemaining: 30)
+    }
+
+    private func sendPaste(to target: NSRunningApplication, attemptsRemaining: Int) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            guard let self, !target.isTerminated else { return }
+            // Do not send a modified paste while the invoking hotkey is still held.
+            let modifiers = CGEventSource.flagsState(.combinedSessionState)
+                .intersection([.maskCommand, .maskControl, .maskAlternate, .maskShift])
+            guard modifiers.isEmpty else {
+                if attemptsRemaining > 0 { self.sendPaste(to: target, attemptsRemaining: attemptsRemaining - 1) }
+                return
+            }
+            guard NSWorkspace.shared.frontmostApplication?.processIdentifier == target.processIdentifier else { return }
+            let source = CGEventSource(stateID: .privateState)
+            let down = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: true)
+            let up = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: false)
+            down?.flags = .maskCommand
+            up?.flags = .maskCommand
+            down?.post(tap: .cghidEventTap)
+            up?.post(tap: .cghidEventTap)
+        }
+    }
+
+    private func offerAccessibilityOnce() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: "hasOfferedAccessibility") else { return }
+        defaults.set(true, forKey: "hasOfferedAccessibility")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            let alert = NSAlert()
+            alert.messageText = "Copied to clipboard"
+            alert.informativeText = "Allow CopyCopy in Accessibility to paste directly into other apps. You can also paste this item yourself with Command-V."
+            alert.addButton(withTitle: "Open Accessibility")
+            alert.addButton(withTitle: "Later")
+            if alert.runModal() == .alertFirstButtonReturn,
+               let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                NSWorkspace.shared.open(url)
+            }
+        }
+    }
+
+    @discardableResult
+    private func add(_ title: String, action: Selector, to menu: NSMenu) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        item.target = self
+        menu.addItem(item)
+        return item
+    }
+
+    @objc private func clearHistory() { store.clear() }
+    @objc private func quit() { NSApp.terminate(nil) }
+}
