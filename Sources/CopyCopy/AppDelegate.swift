@@ -51,9 +51,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         for item in store.items.prefix(20) {
             let row = add(rowTitle(for: item), action: #selector(selectFromMenu(_:)), to: menu)
             row.representedObject = item.id
-            if let url = store.imageURL(for: item), let content = ImageRow.content(for: url) {
-                row.image = content.thumbnail
-                row.title = content.label
+            if let url = store.imageURL(for: item), let view = ImageRowView(url: url, width: menu.minimumWidth) {
+                row.view = view
             }
         }
         if store.items.isEmpty {
