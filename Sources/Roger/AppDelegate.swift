@@ -68,8 +68,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 let region = self.bezel.frame
                 let backdrop = DemoCapture.backdrop(region)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                    DemoCapture.write([backdrop, self.bezel.window], region: region, to: demo.output)
-                    NSApp.terminate(nil)
+                    self.endDemo(DemoCapture.write([backdrop, self.bezel.window], region: region, to: demo.output))
                 }
             }
         case .menu:
@@ -83,7 +82,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// on the common run-loop modes: one to stage the backdrop once the menu
     /// is up, one to capture after the glass has settled over it.
     private func popDemoMenu(_ demo: DemoShot.Invocation) {
-        guard statusItem?.button?.window != nil else { return }
+        guard statusItem?.button?.window != nil else {
+            endDemo(false)
+            return
+        }
         var staged: (backdrop: NSWindow, menu: NSWindow, region: NSRect)?
         let stage = Timer(timeInterval: 0.8, repeats: false) { _ in
             MainActor.assumeIsolated {
@@ -98,18 +100,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         let shoot = Timer(timeInterval: 1.4, repeats: false) { [weak self] _ in
             MainActor.assumeIsolated {
+                var wrote = false
                 if let staged {
-                    DemoCapture.write([staged.backdrop, staged.menu], region: staged.region, to: demo.output)
+                    wrote = DemoCapture.write([staged.backdrop, staged.menu], region: staged.region, to: demo.output)
                 }
                 self?.statusItem?.menu?.cancelTracking()
+                self?.endDemo(wrote)
             }
         }
         let stop = Timer(timeInterval: 8, repeats: false) { [weak self] _ in
-            MainActor.assumeIsolated { self?.statusItem?.menu?.cancelTracking() }
+            MainActor.assumeIsolated {
+                self?.statusItem?.menu?.cancelTracking()
+                self?.endDemo(false)
+            }
         }
         for timer in [stage, shoot, stop] { RunLoop.main.add(timer, forMode: .common) }
         statusItem?.button?.performClick(nil)
-        NSApp.terminate(nil)
+    }
+
+    /// Ends the shot with the caller's status. `terminate` only unwinds to the
+    /// run loop, so the temporary history is removed here and the process is
+    /// left directly.
+    private func endDemo(_ wrote: Bool) {
+        if let demo { try? FileManager.default.removeItem(at: demo.kind.directory) }
+        exit(wrote ? 0 : 1)
     }
 
     func menuWillOpen(_ menu: NSMenu) {

@@ -1,4 +1,6 @@
 import AppKit
+import ScreenCaptureKit
+import os
 
 /// `--demo-shot bezel|menu --demo-out <png>` seeds a throwaway history,
 /// opens the bezel or the menu over a plain backdrop and saves what is on
@@ -73,37 +75,88 @@ enum DemoCapture {
         return window
     }
 
-    /// Writes the given windows, back to front, as they appear inside
-    /// `region`, at the display's pixel density. Each window is read from the
-    /// window server on its own and the pictures are stacked, which is what
-    /// the server does on screen; an app may read its own windows this way
-    /// without screen-recording access.
+    /// Writes `region` as the window server draws it, at the display's pixel
+    /// density: the given windows and the backdrop under them, with every
+    /// other app's windows left out. Reading another process's windows needs
+    /// Screen Recording access, so this fails loudly without it rather than
+    /// writing a blank picture.
+    ///
+    /// The capture is asynchronous, but the menu runs its own tracking loop
+    /// that never drains a task queued on the main actor, so this waits here.
     @discardableResult
     static func write(_ windows: [NSWindow], region: NSRect, to url: URL) -> Bool {
-        guard let primary = NSScreen.screens.first else { return false }
-        let bounds = CGRect(x: region.minX, y: primary.frame.maxY - region.maxY,
+        guard let screen = NSScreen.screens.first(where: { $0.frame.contains(NSPoint(x: region.midX, y: region.midY)) })
+                ?? NSScreen.screens.first else { return false }
+        let windowIDs = windows.map { CGWindowID($0.windowNumber) }
+        let displayID = screen.displayID
+        let scale = screen.backingScaleFactor
+        let source = CGRect(x: region.minX - screen.frame.minX, y: screen.frame.maxY - region.maxY,
                             width: region.width, height: region.height)
-        let layers = windows.compactMap {
-            CGWindowListCreateImage(bounds, .optionIncludingWindow, CGWindowID($0.windowNumber), [.bestResolution])
+        let pixels = CGSize(width: (region.width * scale).rounded(), height: (region.height * scale).rounded())
+        let wrote = OSAllocatedUnfairLock(initialState: false)
+        let finished = DispatchSemaphore(value: 0)
+        Task.detached {
+            let result = await capture(windowIDs: windowIDs, displayID: displayID, source: source, pixels: pixels, to: url)
+            wrote.withLock { $0 = result }
+            finished.signal()
         }
-        guard layers.count == windows.count, let first = layers.first,
-              let context = CGContext(data: nil, width: first.width, height: first.height, bitsPerComponent: 8,
-                                      bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
-            NSLog("Roger demo: could not read %d windows", windows.count)
+        guard finished.wait(timeout: .now() + 10) == .success else {
+            report("the window server did not answer the capture")
             return false
         }
-        let frame = CGRect(x: 0, y: 0, width: first.width, height: first.height)
-        for layer in layers { context.draw(layer, in: frame) }
-        guard let image = context.makeImage() else { return false }
+        return wrote.withLock { $0 }
+    }
+
+    private nonisolated static func capture(windowIDs: [CGWindowID], displayID: CGDirectDisplayID,
+                                            source: CGRect, pixels: CGSize, to url: URL) async -> Bool {
+        let content: SCShareableContent
+        do {
+            content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+        } catch {
+            report("""
+            screen capture is not allowed (\(error.localizedDescription)). \
+            Allow Roger in System Settings > Privacy & Security > Screen Recording, then take the shot again.
+            """)
+            return false
+        }
+        guard let display = content.displays.first(where: { $0.displayID == displayID }) else {
+            report("could not find the display holding the demo windows")
+            return false
+        }
+        let own = Set(windowIDs)
+        let filter = SCContentFilter(display: display,
+                                     excludingWindows: content.windows.filter { !own.contains($0.windowID) })
+        let configuration = SCStreamConfiguration()
+        configuration.sourceRect = source
+        configuration.width = Int(pixels.width)
+        configuration.height = Int(pixels.height)
+        configuration.showsCursor = false
+        configuration.capturesAudio = false
+        let image: CGImage
+        do {
+            image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration)
+        } catch {
+            report("screen capture failed (\(error.localizedDescription))")
+            return false
+        }
         let bitmap = NSBitmapImageRep(cgImage: image)
-        bitmap.size = region.size
+        bitmap.size = source.size
         guard let data = bitmap.representation(using: .png, properties: [:]) else { return false }
         do { try data.write(to: url, options: .atomic) } catch {
-            NSLog("Roger demo: %@", error.localizedDescription)
+            report(error.localizedDescription)
             return false
         }
         return true
+    }
+
+    private nonisolated static func report(_ message: String) {
+        FileHandle.standardError.write(Data("Roger demo: \(message)\n".utf8))
+    }
+}
+
+private extension NSScreen {
+    var displayID: CGDirectDisplayID {
+        (deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? 0
     }
 }
 
