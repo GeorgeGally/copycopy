@@ -3,6 +3,78 @@ import Carbon.HIToolbox
 import ImageIO
 import SwiftUI
 
+/// Every radius in the bezel is concentric: the panel's inner radius equals
+/// the item radius plus the inset between them, and an image is clipped at
+/// the item radius because it fills its item edge to edge.
+enum BezelMetrics {
+    static let cornerRadius: CGFloat = 24
+    static let inset: CGFloat = 14
+    static let itemRadius: CGFloat = cornerRadius - inset
+    static let itemSize = CGSize(width: 236, height: 184)
+    static let itemSpacing: CGFloat = 20
+    static let counterGap: CGFloat = 10
+    static let counterHeight: CGFloat = 16
+    static let width: CGFloat = 720
+    static let height = inset + itemSize.height + counterGap + counterHeight + inset
+    static let edgeFade: CGFloat = 36
+    /// Transparent margin around the surface that holds its shadow.
+    static let shadowMargin: CGFloat = 64
+    static let selectionSpring = Animation.spring(duration: 0.26, bounce: 0)
+}
+
+/// The window's content: one rounded surface with a soft layered shadow
+/// around it. The shadow is cut out under the surface so it never darkens
+/// the glass, and nothing else paints anywhere in the window.
+@MainActor
+private final class BezelRootView: NSView {
+    let surface = NSView()
+    private let shadows: [CALayer] = [(28.0, 0.38, -18.0), (6.0, 0.22, -2.0)].map { radius, opacity, dy in
+        let layer = CALayer()
+        layer.shadowColor = NSColor.black.cgColor
+        layer.shadowRadius = radius
+        layer.shadowOpacity = Float(opacity)
+        layer.shadowOffset = CGSize(width: 0, height: dy)
+        return layer
+    }
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        layer?.backgroundColor = NSColor.clear.cgColor
+        shadows.forEach { layer?.addSublayer($0) }
+        surface.wantsLayer = true
+        surface.layer?.backgroundColor = NSColor.clear.cgColor
+        surface.layer?.cornerRadius = BezelMetrics.cornerRadius
+        surface.layer?.masksToBounds = true
+        surface.frame = bounds.insetBy(dx: BezelMetrics.shadowMargin, dy: BezelMetrics.shadowMargin)
+        addSubview(surface)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    override func layout() {
+        super.layout()
+        let frame = bounds.insetBy(dx: BezelMetrics.shadowMargin, dy: BezelMetrics.shadowMargin)
+        let radius = BezelMetrics.cornerRadius
+        let path = CGPath(roundedRect: frame, cornerWidth: radius, cornerHeight: radius, transform: nil)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        surface.frame = frame
+        for shadow in shadows {
+            shadow.frame = bounds
+            shadow.shadowPath = path
+            let cutout = CAShapeLayer()
+            cutout.fillRule = .evenOdd
+            let outline = CGMutablePath()
+            outline.addRect(bounds)
+            outline.addPath(path)
+            cutout.path = outline
+            shadow.mask = cutout
+        }
+        CATransaction.commit()
+    }
+}
+
 @MainActor
 final class BezelState: ObservableObject {
     @Published var items: [HistoryItem] = []
@@ -17,7 +89,7 @@ final class BezelState: ObservableObject {
         wrapped = items.count > 1 && next != selection
             && (direction > 0 ? next < selection : next > selection)
         if wrapped { NSLog("CopyCopy selection wrapped %d -> %d", selection, next) }
-        withAnimation(.spring(response: 0.26, dampingFraction: 0.88)) {
+        withAnimation(BezelMetrics.selectionSpring) {
             selection = next
         }
     }
@@ -65,13 +137,14 @@ final class BezelController: NSObject, NSWindowDelegate {
     var onSelect: ((HistoryItem) -> Void)?
 
     init(store: HistoryStore) {
-        panel = BezelPanel(contentRect: NSRect(x: 0, y: 0, width: 720, height: 300),
+        let margin = BezelMetrics.shadowMargin
+        panel = BezelPanel(contentRect: NSRect(x: 0, y: 0, width: BezelMetrics.width + margin * 2, height: BezelMetrics.height + margin * 2),
                           styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         super.init()
         panel.title = "CopyCopy"
         panel.isOpaque = false
         panel.backgroundColor = .clear
-        panel.hasShadow = true
+        panel.hasShadow = false
         panel.level = .popUpMenu
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
@@ -79,21 +152,47 @@ final class BezelController: NSObject, NSWindowDelegate {
         panel.appearance = NSAppearance(named: .darkAqua)
         panel.delegate = self
 
-        let material = NSVisualEffectView(frame: panel.contentView?.bounds ?? .zero)
+        let root = BezelRootView(frame: panel.contentView?.bounds ?? .zero)
+        let bounds = root.surface.bounds
+        let radius = BezelMetrics.cornerRadius
+
+        let material = NSVisualEffectView(frame: bounds)
         material.material = .hudWindow
         material.blendingMode = .behindWindow
         material.state = .active
-        material.wantsLayer = true
-        material.layer?.cornerRadius = 26
-        material.layer?.masksToBounds = true
+        material.autoresizingMask = [.width, .height]
+        material.maskImage = Self.roundedMask(radius: radius)
+
+        let tint = NSView(frame: bounds)
+        tint.wantsLayer = true
+        tint.autoresizingMask = [.width, .height]
+        tint.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.4).cgColor
+
+        // The hosting view sits beside the material, not inside it, so text is
+        // drawn at full strength instead of being blended into the backdrop.
         let content = NSHostingView(rootView: BezelView(state: state, store: store))
-        content.frame = material.bounds
+        content.frame = bounds
         content.autoresizingMask = [.width, .height]
-        material.addSubview(content)
-        panel.contentView = material
+
+        root.surface.addSubview(material)
+        root.surface.addSubview(tint)
+        root.surface.addSubview(content)
+        panel.contentView = root
         panel.onStep = { [weak self] in self?.state.step($0) }
         panel.onSelect = { [weak self] in self?.select() }
         panel.onDismiss = { [weak self] in self?.dismiss() }
+    }
+
+    private static func roundedMask(radius: CGFloat) -> NSImage {
+        let side = radius * 2 + 1
+        let image = NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in
+            NSColor.black.setFill()
+            NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
+            return true
+        }
+        image.capInsets = NSEdgeInsets(top: radius, left: radius, bottom: radius, right: radius)
+        image.resizingMode = .stretch
+        return image
     }
 
     func show(items: [HistoryItem], frontApp: NSRunningApplication?) {
@@ -107,8 +206,10 @@ final class BezelController: NSObject, NSWindowDelegate {
         isOpen = true
         let screen = activeScreen(frontApp: frontApp)
         let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1_440, height: 900)
-        let width = min(720, visible.width - 32)
-        let destination = NSRect(x: visible.midX - width / 2, y: visible.midY - 150, width: width, height: 300)
+        let width = min(BezelMetrics.width, visible.width - 32)
+        let height = BezelMetrics.height
+        let destination = NSRect(x: visible.midX - width / 2, y: visible.midY - height / 2, width: width, height: height)
+            .insetBy(dx: -BezelMetrics.shadowMargin, dy: -BezelMetrics.shadowMargin)
         let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         panel.setFrame(destination.offsetBy(dx: 0, dy: reduceMotion ? 0 : -8), display: true)
         panel.alphaValue = 0
@@ -175,33 +276,41 @@ private struct BezelView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            VStack(spacing: 12) {
+            VStack(spacing: BezelMetrics.counterGap) {
                 if state.items.isEmpty {
                     Text("Nothing copied yet")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.6))
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.5))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     ScrollViewReader { proxy in
                         ScrollView(.horizontal) {
-                            LazyHStack(spacing: 20) {
+                            LazyHStack(spacing: BezelMetrics.itemSpacing) {
                                 ForEach(Array(state.items.enumerated()), id: \.element.id) { index, item in
                                     ClipCard(item: item, imageURL: store.imageURL(for: item), selected: state.selection == index)
                                         .id(index)
                                 }
                             }
-                            .padding(.horizontal, max(24, (geometry.size.width - 236) / 2))
-                            .padding(.top, 12)
-                            .padding(.bottom, 10)
+                            .padding(.horizontal, max(BezelMetrics.inset, (geometry.size.width - BezelMetrics.itemSize.width) / 2))
                         }
                         .scrollIndicators(.hidden)
+                        .scrollClipDisabled()
+                        .mask(
+                            HStack(spacing: 0) {
+                                LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing)
+                                    .frame(width: BezelMetrics.edgeFade)
+                                Color.black
+                                LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                                    .frame(width: BezelMetrics.edgeFade)
+                            }
+                        )
                         .onChange(of: state.selection) { _, selected in
                             if state.consumeWrap() {
                                 var transaction = Transaction()
                                 transaction.disablesAnimations = true
                                 withTransaction(transaction) { proxy.scrollTo(selected, anchor: .center) }
                             } else {
-                                withAnimation(reduceMotion ? nil : .spring(response: 0.26, dampingFraction: 0.88)) {
+                                withAnimation(reduceMotion ? nil : BezelMetrics.selectionSpring) {
                                     proxy.scrollTo(selected, anchor: .center)
                                 }
                             }
@@ -209,28 +318,32 @@ private struct BezelView: View {
                         .onChange(of: state.items) { _, _ in proxy.scrollTo(0, anchor: .center) }
                         .onAppear { proxy.scrollTo(state.selection, anchor: .center) }
                     }
-                    .frame(height: 220)
+                    .frame(height: BezelMetrics.itemSize.height)
                 }
                 Text(state.items.isEmpty ? "0 of 0" : "\(state.selection + 1) of \(state.items.count)")
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.white.opacity(0.48))
+                    .font(.system(size: 12, weight: .medium))
+                    .monospacedDigit()
+                    .foregroundStyle(.white.opacity(0.5))
+                    .frame(height: BezelMetrics.counterHeight)
                     .contentTransition(.numericText())
                     .accessibilityLabel("Item \(state.selection + 1) of \(state.items.count)")
             }
-            .padding(.top, 26)
-            .padding(.bottom, 24)
+            .padding(.vertical, BezelMetrics.inset)
             .frame(width: geometry.size.width, height: geometry.size.height)
         }
-        .background(.black.opacity(0.18))
         .preferredColorScheme(.dark)
     }
 }
 
+/// One item on the glass. Nothing frames it: the selected item is the only
+/// thing at full size and full brightness, and its neighbours fall back.
 private struct ClipCard: View {
     let item: HistoryItem
     let imageURL: URL?
     let selected: Bool
     @State private var thumbnail: NSImage?
+
+    private let size = BezelMetrics.itemSize
 
     var body: some View {
         Group {
@@ -239,36 +352,37 @@ private struct ClipCard: View {
                 Text(String(text.prefix(1_200)))
                     .font(.system(size: 15, weight: .regular, design: .monospaced))
                     .lineSpacing(4)
-                    .foregroundStyle(.white.opacity(0.92))
+                    .foregroundStyle(.white.opacity(0.94))
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .padding(20)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
             case .image:
                 if let thumbnail {
-                    Image(nsImage: thumbnail).resizable().scaledToFit()
-                        .clipShape(RoundedRectangle(cornerRadius: 8)).padding(10)
+                    Image(nsImage: thumbnail).resizable().scaledToFill()
+                        .frame(width: size.width, height: size.height)
+                        .clipShape(RoundedRectangle(cornerRadius: BezelMetrics.itemRadius))
                 } else {
-                    Image(systemName: "photo").font(.system(size: 40)).foregroundStyle(.secondary)
+                    Color.white.opacity(0.06)
+                        .clipShape(RoundedRectangle(cornerRadius: BezelMetrics.itemRadius))
                 }
             case .files(let urls):
-                VStack(spacing: 16) {
+                VStack(spacing: 14) {
                     if let url = urls.first {
                         Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
                             .resizable().frame(width: 64, height: 64)
                     }
                     Text(item.label)
                         .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.94))
                         .lineLimit(2).multilineTextAlignment(.center)
                 }
-                .padding(20)
+                .padding(16)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .frame(width: 236, height: 184)
-        .background(.white.opacity(0.05))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .shadow(color: .black.opacity(0.18), radius: 10, y: 6)
-        .scaleEffect(selected ? 1.18 : 0.92)
-        .opacity(selected ? 1 : 0.6)
+        .frame(width: size.width, height: size.height)
+        .scaleEffect(selected ? 1 : 0.92)
+        .opacity(selected ? 1 : 0.34)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(item.label)
         .accessibilityAddTraits(selected ? .isSelected : [])
@@ -280,7 +394,7 @@ private struct ClipCard: View {
         guard let imageURL, let source = CGImageSourceCreateWithURL(imageURL as CFURL, nil),
               let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
                 kCGImageSourceCreateThumbnailFromImageAlways: true,
-                kCGImageSourceThumbnailMaxPixelSize: 472,
+                kCGImageSourceThumbnailMaxPixelSize: 480,
                 kCGImageSourceCreateThumbnailWithTransform: true
               ] as CFDictionary) else { return }
         thumbnail = NSImage(cgImage: image, size: .zero)
