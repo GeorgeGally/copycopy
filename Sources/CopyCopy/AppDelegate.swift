@@ -49,7 +49,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         add("Open history  \(hotKey.shortcut.title)", action: #selector(openFromMenu), to: menu)
         menu.addItem(.separator())
         for item in store.items.prefix(20) {
-            add(rowTitle(for: item), action: #selector(selectFromMenu(_:)), to: menu).representedObject = item.id
+            let row = add(rowTitle(for: item), action: #selector(selectFromMenu(_:)), to: menu)
+            row.representedObject = item.id
+            if let url = store.imageURL(for: item), let content = ImageRow.content(for: url) {
+                row.image = content.thumbnail
+                row.title = content.label
+            }
         }
         if store.items.isEmpty {
             menu.addItem(NSMenuItem(title: "Nothing copied yet", action: nil, keyEquivalent: ""))
