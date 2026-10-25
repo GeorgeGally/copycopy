@@ -1,13 +1,13 @@
 import AppKit
 import Carbon.HIToolbox
 import Testing
-@testable import CopyCopy
+@testable import CopyOver
 
 @Suite(.serialized)
 @MainActor
 struct HistoryTests {
     private func directory() -> URL {
-        FileManager.default.temporaryDirectory.appendingPathComponent("CopyCopyTests-\(UUID().uuidString)")
+        FileManager.default.temporaryDirectory.appendingPathComponent("CopyOverTests-\(UUID().uuidString)")
     }
 
     @Test func duplicateMovesToTopAndSurvivesRelaunch() throws {
@@ -116,7 +116,7 @@ struct HistoryTests {
         let path = directory()
         defer { try? FileManager.default.removeItem(at: path) }
         let store = HistoryStore(directory: path)
-        let board = NSPasteboard(name: NSPasteboard.Name("CopyCopyTests-\(UUID().uuidString)"))
+        let board = NSPasteboard(name: NSPasteboard.Name("CopyOverTests-\(UUID().uuidString)"))
         defer { board.releaseGlobally() }
         let watcher = ClipboardWatcher(store: store, pasteboard: board)
         board.clearContents()
@@ -130,7 +130,7 @@ struct HistoryTests {
         let image = try #require(store.items.first)
         #expect(store.imageURL(for: image) != nil)
         board.clearContents()
-        let files = [URL(fileURLWithPath: "/tmp/CopyCopy test.txt")]
+        let files = [URL(fileURLWithPath: "/tmp/CopyOver test.txt")]
         board.writeObjects(files.map { $0 as NSURL })
         watcher.poll()
         let file = try #require(store.items.first)
@@ -150,7 +150,7 @@ struct HistoryTests {
         let path = directory()
         defer { try? FileManager.default.removeItem(at: path) }
         let store = HistoryStore(directory: path)
-        let board = NSPasteboard(name: NSPasteboard.Name("CopyCopyTests-\(UUID().uuidString)"))
+        let board = NSPasteboard(name: NSPasteboard.Name("CopyOverTests-\(UUID().uuidString)"))
         defer { board.releaseGlobally() }
         let watcher = ClipboardWatcher(store: store, pasteboard: board)
         let concealed = NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType")
@@ -257,7 +257,7 @@ struct HistoryTests {
     }
 
     @Test func shortcutRoundTripsThroughUserDefaults() throws {
-        let name = "CopyCopyTests-\(UUID().uuidString)"
+        let name = "CopyOverTests-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: name))
         defer { defaults.removePersistentDomain(forName: name) }
         #expect(Shortcut.stored(in: defaults) == .standard)
@@ -269,6 +269,24 @@ struct HistoryTests {
         #expect(defaults.string(forKey: Shortcut.defaultsKey) == custom.storedValue)
         #expect(Shortcut.stored(in: defaults) == custom)
         #expect(Shortcut(storedValue: "not a shortcut") == nil)
+    }
+
+    @Test func legacyStoreIsCopiedAndKept() throws {
+        let support = FileManager.default.temporaryDirectory.appendingPathComponent("CopyOverTests-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: support) }
+        let legacy = support.appendingPathComponent("CopyCopy", isDirectory: true)
+        let destination = support.appendingPathComponent("CopyOver", isDirectory: true)
+        let old = HistoryStore(directory: legacy)
+        old.recordText("kept")
+        let legacyIndex = legacy.appendingPathComponent("history.json")
+        let saved = try Data(contentsOf: legacyIndex)
+
+        try HistoryStore.copyLegacyStore(from: legacy, to: destination)
+
+        #expect(HistoryStore(directory: destination).items.map(\.content) == [.text("kept")])
+        #expect(try Data(contentsOf: legacyIndex) == saved)
+        try HistoryStore.copyLegacyStore(from: legacy, to: destination)
+        #expect(HistoryStore(directory: destination).items.count == 1)
     }
 
     private func imageData() throws -> Data {

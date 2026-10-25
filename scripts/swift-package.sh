@@ -1,20 +1,20 @@
 #!/bin/bash
 set -euo pipefail
 
-COPYCOPY_ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
-COPYCOPY_COMPILER="$(xcrun --find swiftc)"
-COPYCOPY_HEADERS="$(dirname "$(dirname "$COPYCOPY_COMPILER")")/include/swift"
-COPYCOPY_FLAGS=()
+COPYOVER_ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
+COPYOVER_COMPILER="$(xcrun --find swiftc)"
+COPYOVER_HEADERS="$(dirname "$(dirname "$COPYOVER_COMPILER")")/include/swift"
+COPYOVER_FLAGS=()
 
 # Some CLT upgrades leave the old map beside its replacement. Hide only that
 # duplicate in this build; never alter the machine's installed toolchain.
-if [[ -f "$COPYCOPY_HEADERS/module.modulemap" && -f "$COPYCOPY_HEADERS/bridging.modulemap" ]] \
-    && grep -q '^module SwiftBridging' "$COPYCOPY_HEADERS/module.modulemap" \
-    && grep -q '^module SwiftBridging' "$COPYCOPY_HEADERS/bridging.modulemap"; then
-    mkdir -p "$COPYCOPY_ROOT/.build"
-    COPYCOPY_EMPTY="$COPYCOPY_ROOT/.build/copycopy-empty.modulemap"
-    COPYCOPY_OVERLAY="$COPYCOPY_ROOT/.build/copycopy-toolchain.json"
-    : > "$COPYCOPY_EMPTY"
+if [[ -f "$COPYOVER_HEADERS/module.modulemap" && -f "$COPYOVER_HEADERS/bridging.modulemap" ]] \
+    && grep -q '^module SwiftBridging' "$COPYOVER_HEADERS/module.modulemap" \
+    && grep -q '^module SwiftBridging' "$COPYOVER_HEADERS/bridging.modulemap"; then
+    mkdir -p "$COPYOVER_ROOT/.build"
+    COPYOVER_EMPTY="$COPYOVER_ROOT/.build/copyover-empty.modulemap"
+    COPYOVER_OVERLAY="$COPYOVER_ROOT/.build/copyover-toolchain.json"
+    : > "$COPYOVER_EMPTY"
     json_string() {
         local value="${1//\\/\\\\}"
         value="${value//\"/\\\"}"
@@ -22,12 +22,12 @@ if [[ -f "$COPYCOPY_HEADERS/module.modulemap" && -f "$COPYCOPY_HEADERS/bridging.
     }
     {
         printf '{"version":0,"roots":[{"type":"file","name":'
-        json_string "$COPYCOPY_HEADERS/module.modulemap"
+        json_string "$COPYOVER_HEADERS/module.modulemap"
         printf ',"external-contents":'
-        json_string "$COPYCOPY_EMPTY"
+        json_string "$COPYOVER_EMPTY"
         printf '}]}'
-    } > "$COPYCOPY_OVERLAY"
-    COPYCOPY_FLAGS=(-Xswiftc -vfsoverlay -Xswiftc "$COPYCOPY_OVERLAY")
+    } > "$COPYOVER_OVERLAY"
+    COPYOVER_FLAGS=(-Xswiftc -vfsoverlay -Xswiftc "$COPYOVER_OVERLAY")
 fi
 
-exec swift "$@" --package-path "$COPYCOPY_ROOT" ${COPYCOPY_FLAGS[@]+"${COPYCOPY_FLAGS[@]}"}
+exec swift "$@" --package-path "$COPYOVER_ROOT" ${COPYOVER_FLAGS[@]+"${COPYOVER_FLAGS[@]}"}

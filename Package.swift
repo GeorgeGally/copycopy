@@ -2,11 +2,11 @@
 import PackageDescription
 
 let package = Package(
-    name: "CopyCopy",
+    name: "CopyOver",
     platforms: [.macOS(.v14)],
-    products: [.executable(name: "CopyCopy", targets: ["CopyCopy"])],
+    products: [.executable(name: "CopyOver", targets: ["CopyOver"])],
     targets: [
-        .executableTarget(name: "CopyCopy"),
-        .testTarget(name: "CopyCopyTests", dependencies: ["CopyCopy"])
+        .executableTarget(name: "CopyOver"),
+        .testTarget(name: "CopyOverTests", dependencies: ["CopyOver"])
     ]
 )

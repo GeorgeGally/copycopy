@@ -51,10 +51,18 @@ final class HistoryStore: ObservableObject {
     }
 
     init(directory: URL? = nil, itemLimit: Int = 200, imageBudget: Int = 500 * 1_024 * 1_024) {
-        self.directory = directory ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("CopyCopy", isDirectory: true)
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        self.directory = directory ?? support.appendingPathComponent("CopyOver", isDirectory: true)
         self.itemLimit = itemLimit
         self.imageBudget = imageBudget
+        if directory == nil {
+            do {
+                try Self.copyLegacyStore(from: support.appendingPathComponent("CopyCopy", isDirectory: true),
+                                         to: self.directory)
+            } catch {
+                NSLog("CopyOver could not migrate the CopyCopy history: %@", error.localizedDescription)
+            }
+        }
         do {
             try fileManager.createDirectory(at: self.directory, withIntermediateDirectories: true,
                                             attributes: [.posixPermissions: 0o700])
@@ -75,6 +83,12 @@ final class HistoryStore: ObservableObject {
         } catch {
             errorMessage = "History could not be loaded: \(error.localizedDescription)"
         }
+    }
+
+    static func copyLegacyStore(from legacy: URL, to destination: URL) throws {
+        guard !FileManager.default.fileExists(atPath: destination.path),
+              FileManager.default.fileExists(atPath: legacy.path) else { return }
+        try FileManager.default.copyItem(at: legacy, to: destination)
     }
 
     func recordText(_ text: String) {
@@ -162,6 +176,6 @@ final class HistoryStore: ObservableObject {
 
     private enum StoreError: LocalizedError {
         case unsupportedIndex
-        var errorDescription: String? { "This history was written by a newer version of CopyCopy." }
+        var errorDescription: String? { "This history was written by a newer version of CopyOver." }
     }
 }

@@ -1,4 +1,4 @@
-# CopyCopy
+# CopyOver
 
 A macOS menu-bar clipboard history with text, images and files, opened by a
 Jumpcut-style sticky bezel.
@@ -7,8 +7,8 @@ Hotkey: Command + Option + Control + V. Change it in Preferences.
 
 ## Build
 
-    ./build.sh          # builds CopyCopy.app in ./dist
-    open dist/CopyCopy.app
+    ./build.sh          # builds CopyOver.app in ./dist
+    open dist/CopyOver.app
 
 Requires macOS 14 or newer and the Command Line Tools (a Swift toolchain).
 
@@ -37,22 +37,22 @@ system dialog; until it is granted the bezel says it copied and cannot paste
 yet, and the item is on the clipboard for Command + V. The menu-bar item Allow
 Pasting in Accessibility opens System Settings > Privacy & Security >
 Accessibility at any time. The app is ad-hoc signed, so a rebuilt app is not
-trusted even while an older CopyCopy row shows as switched on: remove that row
+trusted even while an older CopyOver row shows as switched on: remove that row
 with the minus button and add the new app. To keep the grant across builds,
-create a code-signing certificate named CopyCopy in Keychain Access
+create a code-signing certificate named CopyOver in Keychain Access
 (Certificate Assistant > Create a Certificate, type Code Signing); build.sh
 signs with it when it exists. Every paste attempt is logged to
-`~/Library/Application Support/CopyCopy/paste.log`. If another clipboard app owns the shortcut, quit it
-and relaunch CopyCopy, or record a different shortcut in Preferences.
+`~/Library/Application Support/CopyOver/paste.log`. If another clipboard app owns the shortcut, quit it
+and relaunch CopyOver, or record a different shortcut in Preferences.
 
 ## Storage
 
-History is local in `~/Library/Application Support/CopyCopy/`. `history.json`
+History is local in `~/Library/Application Support/CopyOver/`. `history.json`
 holds text and file references. Images are stored beside it as PNG files. Files
 are referenced in their original locations, not duplicated; moving or deleting
 an original file can make that history entry unusable.
 
-CopyCopy keeps 200 items, moves duplicates to the top, and limits image storage
+CopyOver keeps 200 items, moves duplicates to the top, and limits image storage
 to 500 MiB by evicting the oldest images. It skips empty text, text over 2 MiB,
 images over 40 MiB, and clipboard items marked `org.nspasteboard.ConcealedType`.
 Clear history deletes the stored entries and images. It does not erase the
@@ -62,8 +62,8 @@ current system clipboard or the original files.
 
     ./scripts/swift-package.sh test -c release
     ./build.sh
-    codesign --verify --strict dist/CopyCopy.app
-    open dist/CopyCopy.app
+    codesign --verify --strict dist/CopyOver.app
+    open dist/CopyOver.app
 
 The tests use temporary storage and named pasteboards. They exercise limits,
 eviction, duplicates, persistence, concealed items, all three clipboard types,

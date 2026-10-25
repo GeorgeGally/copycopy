@@ -2,11 +2,11 @@ import Foundation
 
 /// Plain-text trail of every paste attempt, because NSLog from this app does
 /// not reach the unified log. Lives beside the history:
-/// ~/Library/Application Support/CopyCopy/paste.log
+/// ~/Library/Application Support/CopyOver/paste.log
 @MainActor
 enum PasteLog {
     static let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        .appendingPathComponent("CopyCopy", isDirectory: true).appendingPathComponent("paste.log")
+        .appendingPathComponent("CopyOver", isDirectory: true).appendingPathComponent("paste.log")
     private static let stamp: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
@@ -14,7 +14,7 @@ enum PasteLog {
     }()
 
     static func write(_ message: String) {
-        NSLog("CopyCopy %@", message)
+        NSLog("CopyOver %@", message)
         let line = "\(stamp.string(from: Date())) \(message)\n"
         guard let data = line.data(using: .utf8) else { return }
         if let size = try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int, size > 512 * 1_024 {

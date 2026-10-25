@@ -90,7 +90,7 @@ final class BezelState: ObservableObject {
         let next = (selection + direction + items.count) % items.count
         wrapped = items.count > 1 && next != selection
             && (direction > 0 ? next < selection : next > selection)
-        if wrapped { NSLog("CopyCopy selection wrapped %d -> %d", selection, next) }
+        if wrapped { NSLog("CopyOver selection wrapped %d -> %d", selection, next) }
         withAnimation(BezelMetrics.selectionSpring) {
             selection = next
         }
@@ -146,7 +146,7 @@ final class BezelController: NSObject, NSWindowDelegate {
         panel = BezelPanel(contentRect: NSRect(x: 0, y: 0, width: BezelMetrics.width + margin * 2, height: BezelMetrics.height + margin * 2),
                           styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         super.init()
-        panel.title = "CopyCopy"
+        panel.title = "CopyOver"
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = false

@@ -127,7 +127,7 @@ final class HotKey {
         references = fresh
         shortcut = new
         new.store()
-        NSLog("CopyCopy hotkey registered: %@", new.title)
+        NSLog("CopyOver hotkey registered: %@", new.title)
         return noErr
     }
 

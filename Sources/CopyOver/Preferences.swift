@@ -65,7 +65,7 @@ final class PreferencesController: NSObject, NSWindowDelegate {
         field.stopRecording()
         caption.stringValue = shortcut.words
         message.stringValue = ""
-        NSLog("CopyCopy hotkey changed: %@", shortcut.title)
+        NSLog("CopyOver hotkey changed: %@", shortcut.title)
         onChange?()
     }
 }
