@@ -34,9 +34,9 @@ Change it in Preferences.
 - Click the menu-bar icon for the 20 most recent items, Clear history,
   Preferences, and Quit.
 
-![The bezel open on a text item](docs/screenshots/bezel-text.png)
+![The bezel open on a text item](docs/screenshots/bezel.png)
 
-![The bezel open on an image item](docs/screenshots/bezel-image.png)
+![The menu-bar menu with text and image rows](docs/screenshots/menu.png)
 
 ## License
 
