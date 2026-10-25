@@ -52,15 +52,17 @@ final class HistoryStore: ObservableObject {
 
     init(directory: URL? = nil, itemLimit: Int = 200, imageBudget: Int = 500 * 1_024 * 1_024) {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        self.directory = directory ?? support.appendingPathComponent("CopyOver", isDirectory: true)
+        self.directory = directory ?? support.appendingPathComponent("Roger", isDirectory: true)
         self.itemLimit = itemLimit
         self.imageBudget = imageBudget
         if directory == nil {
-            do {
-                try Self.copyLegacyStore(from: support.appendingPathComponent("CopyCopy", isDirectory: true),
-                                         to: self.directory)
-            } catch {
-                NSLog("CopyOver could not migrate the CopyCopy history: %@", error.localizedDescription)
+            for legacy in ["CopyOver", "CopyCopy"] {
+                do {
+                    try Self.copyLegacyStore(from: support.appendingPathComponent(legacy, isDirectory: true),
+                                             to: self.directory)
+                } catch {
+                    NSLog("Roger could not migrate the %@ history: %@", legacy, error.localizedDescription)
+                }
             }
         }
         do {
@@ -176,6 +178,6 @@ final class HistoryStore: ObservableObject {
 
     private enum StoreError: LocalizedError {
         case unsupportedIndex
-        var errorDescription: String? { "This history was written by a newer version of CopyOver." }
+        var errorDescription: String? { "This history was written by a newer version of Roger." }
     }
 }

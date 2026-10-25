@@ -25,11 +25,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
-        NSLog("CopyOver history loaded: %d items", store.items.count)
+        NSLog("Roger history loaded: %d items", store.items.count)
         let status = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        status.button?.image = NSImage(systemSymbolName: "square.on.square", accessibilityDescription: "CopyOver")
-        status.button?.toolTip = "CopyOver"
-        status.button?.setAccessibilityLabel("CopyOver")
+        status.button?.image = NSImage(systemSymbolName: "square.on.square", accessibilityDescription: "Roger")
+        status.button?.toolTip = "Roger"
+        status.button?.setAccessibilityLabel("Roger")
         let menu = NSMenu()
         menu.delegate = self
         status.menu = menu
@@ -42,10 +42,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         hotKey.onPress = { [weak self] in self?.showBezel() }
         preferences.onChange = { [weak self] in self?.hotKeyError = nil }
         let result = hotKey.register()
-        NSLog("CopyOver hotkey registration status: %d", result)
+        NSLog("Roger hotkey registration status: %d", result)
         PasteLog.write("launch \(Bundle.main.bundlePath) trusted=\(accessibilityTrusted(prompt: false)) canPostEvents=\(CGPreflightPostEventAccess())")
         if result != noErr {
-            hotKeyError = "Shortcut unavailable. Quit another app using \(hotKey.shortcut.title) and reopen CopyOver."
+            hotKeyError = "Shortcut unavailable. Quit another app using \(hotKey.shortcut.title) and reopen Roger."
         }
         watcher.start()
     }
@@ -123,7 +123,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         add("Clear history", action: #selector(clearHistory), to: menu).isEnabled = !store.items.isEmpty
         add("Allow Pasting in Accessibility…", action: #selector(openAccessibilitySettings), to: menu)
         add("Preferences…", action: #selector(openPreferences), to: menu)
-        add("Quit CopyOver", action: #selector(quit), to: menu)
+        add("Quit Roger", action: #selector(quit), to: menu)
     }
 
     private func rowTitle(for item: HistoryItem, limit: Int = 40) -> String {
@@ -169,7 +169,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         PasteLog.write("return item=\(item.label.prefix(40).debugDescription) trusted=\(trusted) canPostEvents=\(CGPreflightPostEventAccess()) frontmost=\(Self.describe(front)) target=\(Self.describe(pasteTarget))")
         guard trusted else {
             _ = copy(item)
-            PasteLog.write("copied only: Accessibility is not granted to this binary (a listed CopyOver row may belong to an older build)")
+            PasteLog.write("copied only: Accessibility is not granted to this binary (a listed Roger row may belong to an older build)")
             return
         }
         guard let target = pasteTarget, !target.isTerminated else {
@@ -263,11 +263,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             NSWorkspace.shared.open(url)
         }
         guard !accessibilityTrusted(prompt: false) else { return }
-        // A CopyOver row that is switched on but belongs to an earlier build
+        // A Roger row that is switched on but belongs to an earlier build
         // does not trust this one; only removing and re-adding it does.
         let alert = NSAlert()
-        alert.messageText = "This copy of CopyOver is not trusted yet"
-        alert.informativeText = "If CopyOver is already listed and switched on, that entry belongs to an earlier build. Remove it with the minus button, then add this app again:\n\(Bundle.main.bundlePath)"
+        alert.messageText = "This copy of Roger is not trusted yet"
+        alert.informativeText = "If Roger is already listed and switched on, that entry belongs to an earlier build. Remove it with the minus button, then add this app again:\n\(Bundle.main.bundlePath)"
         alert.addButton(withTitle: "OK")
         alert.runModal()
     }

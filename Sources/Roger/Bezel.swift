@@ -150,7 +150,7 @@ final class BezelController: NSObject, NSWindowDelegate {
         panel = BezelPanel(contentRect: NSRect(x: 0, y: 0, width: BezelMetrics.width + margin * 2, height: BezelMetrics.height + margin * 2),
                           styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         super.init()
-        panel.title = "CopyOver"
+        panel.title = "Roger"
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = false

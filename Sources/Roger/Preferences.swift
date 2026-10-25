@@ -1,6 +1,20 @@
 import AppKit
 import Carbon.HIToolbox
 
+/// The bundle identifier changed with the rename, and preferences live in the
+/// bundle's domain, so the old domain is copied across once on first launch.
+enum LegacyPreferences {
+    static let domain = "com.george.copyover"
+
+    static func carryOver(into defaults: UserDefaults = .standard) {
+        guard let legacy = UserDefaults(suiteName: domain),
+              let values = legacy.persistentDomain(forName: domain) else { return }
+        for (key, value) in values where defaults.object(forKey: key) == nil {
+            defaults.set(value, forKey: key)
+        }
+    }
+}
+
 @MainActor
 final class PreferencesController: NSObject, NSWindowDelegate {
     private let hotKey: HotKey
@@ -65,7 +79,7 @@ final class PreferencesController: NSObject, NSWindowDelegate {
         field.stopRecording()
         caption.stringValue = shortcut.words
         message.stringValue = ""
-        NSLog("CopyOver hotkey changed: %@", shortcut.title)
+        NSLog("Roger hotkey changed: %@", shortcut.title)
         onChange?()
     }
 }

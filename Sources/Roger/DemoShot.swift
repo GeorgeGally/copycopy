@@ -20,7 +20,7 @@ enum DemoShot: String {
     }
 
     var directory: URL {
-        FileManager.default.temporaryDirectory.appendingPathComponent("copyover-demo-\(rawValue)", isDirectory: true)
+        FileManager.default.temporaryDirectory.appendingPathComponent("roger-demo-\(rawValue)", isDirectory: true)
     }
 
     var selection: Int {
@@ -33,11 +33,11 @@ enum DemoShot: String {
 
     @MainActor
     func seed(into store: HistoryStore) {
-        let image = ProcessInfo.processInfo.environment["COPYOVER_DEMO_IMAGE"]
+        let image = ProcessInfo.processInfo.environment["ROGER_DEMO_IMAGE"]
             .flatMap { try? Data(contentsOf: URL(fileURLWithPath: $0)) }
-        store.recordText("Coffee with Sam at 11, then the copy-over review.")
+        store.recordText("Coffee with Sam at 11, then the design review.")
         store.recordText("git rebase --autosquash origin/main")
-        store.recordText("Meeting notes: the copy-over review is at 11.")
+        store.recordText("Meeting notes: the design review is at 11.")
         if let image { store.recordPNG(image) }
         store.recordText("Ship the bezel animation before Friday, then take the README screenshots.")
         store.recordText("https://developer.apple.com/design/human-interface-guidelines/typography")
