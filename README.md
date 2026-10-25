@@ -5,6 +5,14 @@ Jumpcut-style sticky bezel.
 
 Hotkey: Command + Option + Control + V. Change it in Preferences.
 
+## Screenshots
+
+![The bezel open on a text item](docs/screenshots/bezel-text.png)
+
+![The bezel open on an image item](docs/screenshots/bezel-image.png)
+
+![The menu-bar menu with text and image rows](docs/screenshots/menu.png)
+
 ## Build
 
     ./build.sh          # builds CopyOver.app in ./dist
