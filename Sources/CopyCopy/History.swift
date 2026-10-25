@@ -111,12 +111,6 @@ final class HistoryStore: ObservableObject {
         }
     }
 
-    func promote(_ item: HistoryItem) {
-        var item = item
-        item.copiedAt = Date()
-        insert(item)
-    }
-
     func clear() {
         save([])
     }

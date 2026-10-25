@@ -195,13 +195,17 @@ final class BezelController: NSObject, NSWindowDelegate {
         return image
     }
 
-    func show(items: [HistoryItem], frontApp: NSRunningApplication?) {
+    var isVisible: Bool { panel.isVisible }
+
+    /// Opens on `selectedID` when it is still in the history, so the bezel
+    /// picks up where the last paste left off.
+    func show(items: [HistoryItem], selectedID: String? = nil, frontApp: NSRunningApplication?) {
         if isOpen {
             state.step(NSEvent.modifierFlags.contains(.shift) ? -1 : 1)
             return
         }
         state.items = items
-        state.selection = 0
+        state.selection = items.firstIndex { $0.id == selectedID } ?? 0
         transition += 1
         isOpen = true
         let screen = activeScreen(frontApp: frontApp)
@@ -243,9 +247,13 @@ final class BezelController: NSObject, NSWindowDelegate {
 
     func windowDidResignKey(_ notification: Notification) { dismiss() }
 
+    /// Return closes the panel at once, with no fade, so keyboard focus is back
+    /// with the target app before the paste keystroke is posted.
     private func select() {
         guard let item = state.selected else { return }
-        dismiss()
+        isOpen = false
+        transition += 1
+        panel.orderOut(nil)
         onSelect?(item)
     }
 
@@ -273,6 +281,7 @@ private struct BezelView: View {
     @ObservedObject var state: BezelState
     let store: HistoryStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var scrolled: Int?
 
     var body: some View {
         GeometryReader { geometry in
@@ -283,41 +292,39 @@ private struct BezelView: View {
                         .foregroundStyle(.white.opacity(0.5))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    ScrollViewReader { proxy in
-                        ScrollView(.horizontal) {
-                            LazyHStack(spacing: BezelMetrics.itemSpacing) {
-                                ForEach(Array(state.items.enumerated()), id: \.element.id) { index, item in
-                                    ClipCard(item: item, imageURL: store.imageURL(for: item), selected: state.selection == index)
-                                        .id(index)
-                                }
-                            }
-                            .padding(.horizontal, max(BezelMetrics.inset, (geometry.size.width - BezelMetrics.itemSize.width) / 2))
-                        }
-                        .scrollIndicators(.hidden)
-                        .scrollClipDisabled()
-                        .mask(
-                            HStack(spacing: 0) {
-                                LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing)
-                                    .frame(width: BezelMetrics.edgeFade)
-                                Color.black
-                                LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
-                                    .frame(width: BezelMetrics.edgeFade)
-                            }
-                        )
-                        .onChange(of: state.selection) { _, selected in
-                            if state.consumeWrap() {
-                                var transaction = Transaction()
-                                transaction.disablesAnimations = true
-                                withTransaction(transaction) { proxy.scrollTo(selected, anchor: .center) }
-                            } else {
-                                withAnimation(reduceMotion ? nil : BezelMetrics.selectionSpring) {
-                                    proxy.scrollTo(selected, anchor: .center)
-                                }
+                    ScrollView(.horizontal) {
+                        LazyHStack(spacing: BezelMetrics.itemSpacing) {
+                            ForEach(Array(state.items.enumerated()), id: \.element.id) { index, item in
+                                ClipCard(item: item, imageURL: store.imageURL(for: item), selected: state.selection == index)
+                                    .id(index)
                             }
                         }
-                        .onChange(of: state.items) { _, _ in proxy.scrollTo(0, anchor: .center) }
-                        .onAppear { proxy.scrollTo(state.selection, anchor: .center) }
+                        .scrollTargetLayout()
+                        .padding(.horizontal, max(BezelMetrics.inset, (geometry.size.width - BezelMetrics.itemSize.width) / 2))
                     }
+                    .scrollPosition(id: $scrolled, anchor: .center)
+                    .scrollIndicators(.hidden)
+                    .scrollClipDisabled()
+                    .mask(
+                        HStack(spacing: 0) {
+                            LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing)
+                                .frame(width: BezelMetrics.edgeFade)
+                            Color.black
+                            LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                                .frame(width: BezelMetrics.edgeFade)
+                        }
+                    )
+                    .onChange(of: state.selection) { _, selected in
+                        if state.consumeWrap() {
+                            var transaction = Transaction()
+                            transaction.disablesAnimations = true
+                            withTransaction(transaction) { scrolled = selected }
+                        } else {
+                            withAnimation(reduceMotion ? nil : BezelMetrics.selectionSpring) { scrolled = selected }
+                        }
+                    }
+                    .onChange(of: state.items) { _, _ in scrolled = state.selection }
+                    .onAppear { scrolled = state.selection }
                     .frame(height: BezelMetrics.itemSize.height)
                 }
                 Text(state.items.isEmpty ? "0 of 0" : "\(state.selection + 1) of \(state.items.count)")
@@ -349,13 +356,17 @@ private struct ClipCard: View {
         Group {
             switch item.content {
             case .text(let text):
+                // Centred both ways; the slight lift offsets the line spacing
+                // and descenders that make mathematically centred text sit low.
                 Text(String(text.prefix(1_200)))
                     .font(.system(size: 15, weight: .regular, design: .monospaced))
                     .lineSpacing(4)
+                    .multilineTextAlignment(.center)
                     .foregroundStyle(.white.opacity(0.94))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .offset(y: -2)
             case .image:
                 if let thumbnail {
                     Image(nsImage: thumbnail).resizable().scaledToFill()

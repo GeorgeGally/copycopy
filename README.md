@@ -25,6 +25,7 @@ in the menu bar and does not appear in the Dock.
   Stepping past the newest or oldest item moves to the other end without the
   long slide back.
 - Press Return to copy the selected item and paste into the app you were using.
+  The bezel reopens on that item, so you can walk through history in order.
 - Press Escape to dismiss. Releasing the shortcut modifiers leaves the bezel open.
 - Click the menu-bar icon for the 20 most recent items, Clear history,
   Preferences, and Quit. Preferences records a new shortcut when you click the

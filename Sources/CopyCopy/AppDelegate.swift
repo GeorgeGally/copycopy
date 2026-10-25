@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem?
     private var pasteTarget: NSRunningApplication?
     private var hotKeyError: String?
+    private static let lastSelectedKey = "lastSelectedItemID"
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -29,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         preferences.onChange = { [weak self] in self?.hotKeyError = nil }
         let result = hotKey.register()
         NSLog("CopyCopy hotkey registration status: %d", result)
+        NSLog("CopyCopy accessibility trusted: %d", AXIsProcessTrusted() ? 1 : 0)
         if result != noErr {
             hotKeyError = "Shortcut unavailable. Quit another app using \(hotKey.shortcut.title) and reopen CopyCopy."
         }
@@ -83,7 +85,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func showBezel() {
         if !bezel.isOpen { pasteTarget = NSWorkspace.shared.frontmostApplication }
         watcher.poll()
-        bezel.show(items: store.items, frontApp: pasteTarget)
+        bezel.show(items: store.items, selectedID: UserDefaults.standard.string(forKey: Self.lastSelectedKey), frontApp: pasteTarget)
     }
 
     @objc private func openFromMenu() {
@@ -97,6 +99,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func paste(_ item: HistoryItem) {
+        UserDefaults.standard.set(item.id, forKey: Self.lastSelectedKey)
         do {
             try watcher.restore(item)
         } catch {
@@ -107,10 +110,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return
         }
         guard AXIsProcessTrusted() else {
+            NSLog("CopyCopy paste: on the clipboard only; Accessibility is not granted to this build")
             offerAccessibilityOnce()
             return
         }
-        guard let target = pasteTarget, !target.isTerminated else { return }
+        guard let target = pasteTarget, !target.isTerminated else {
+            NSLog("CopyCopy paste: no target app")
+            return
+        }
+        // Let the pasteboard settle before the target reads it.
         sendPaste(to: target, attemptsRemaining: 30)
     }
 
@@ -120,11 +128,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             // Do not send a modified paste while the invoking hotkey is still held.
             let modifiers = CGEventSource.flagsState(.combinedSessionState)
                 .intersection([.maskCommand, .maskControl, .maskAlternate, .maskShift])
-            guard modifiers.isEmpty else {
+            guard modifiers.isEmpty, !self.bezel.isVisible else {
                 if attemptsRemaining > 0 { self.sendPaste(to: target, attemptsRemaining: attemptsRemaining - 1) }
+                else { NSLog("CopyCopy paste: gave up; modifiers held or bezel still visible") }
                 return
             }
-            guard NSWorkspace.shared.frontmostApplication?.processIdentifier == target.processIdentifier else { return }
+            guard NSWorkspace.shared.frontmostApplication?.processIdentifier == target.processIdentifier else {
+                NSLog("CopyCopy paste: %@ is no longer frontmost", target.localizedName ?? "target")
+                return
+            }
+            NSLog("CopyCopy paste: Command-V to %@ with %@", target.localizedName ?? "target",
+                  (NSPasteboard.general.types ?? []).map(\.rawValue).joined(separator: " "))
             let source = CGEventSource(stateID: .privateState)
             let down = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: true)
             let up = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: false)

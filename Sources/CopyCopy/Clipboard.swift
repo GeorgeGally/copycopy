@@ -66,13 +66,16 @@ final class ClipboardWatcher: NSObject {
         case .text(let text): succeeded = pasteboard.setString(text, forType: .string)
         case .image:
             if let imageData {
+                // PNG plus TIFF: the pair every AppKit, Electron and browser paste path reads.
                 succeeded = pasteboard.setData(imageData, forType: .png)
+                if let tiff = NSBitmapImageRep(data: imageData)?.tiffRepresentation {
+                    pasteboard.setData(tiff, forType: .tiff)
+                }
             } else { succeeded = false }
         case .files(let urls): succeeded = pasteboard.writeObjects(urls.map { $0 as NSURL })
         }
         lastChange = pasteboard.changeCount
         guard succeeded else { throw ClipboardError.writeFailed }
-        store.promote(item)
     }
 
     private static func pngData(from data: Data) -> Data? {
