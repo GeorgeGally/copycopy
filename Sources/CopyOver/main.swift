@@ -1,6 +1,6 @@
 import AppKit
 
 let application = NSApplication.shared
-let delegate = AppDelegate()
+let delegate = AppDelegate(demo: DemoShot.parse(CommandLine.arguments))
 application.delegate = delegate
 application.run()

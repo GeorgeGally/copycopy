@@ -26,7 +26,7 @@ enum BezelMetrics {
 /// around it. The shadow is cut out under the surface so it never darkens
 /// the glass, and nothing else paints anywhere in the window.
 @MainActor
-private final class BezelRootView: NSView {
+final class BezelRootView: NSView {
     let surface = NSView()
     private let shadows: [CALayer] = [(28.0, 0.38, -18.0), (6.0, 0.22, -2.0)].map { radius, opacity, dy in
         let layer = CALayer()
@@ -201,6 +201,7 @@ final class BezelController: NSObject, NSWindowDelegate {
     }
 
     var isVisible: Bool { panel.isVisible }
+    var snapshotSurface: NSView? { (panel.contentView as? BezelRootView)?.surface }
 
     /// Opens on `selectedID` when it is still in the history, so the bezel
     /// picks up where the last paste left off.

@@ -4,7 +4,8 @@ import Carbon.HIToolbox
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
-    private let store = HistoryStore()
+    private let demo: DemoShot.Invocation?
+    private let store: HistoryStore
     private lazy var watcher = ClipboardWatcher(store: store)
     private lazy var bezel = BezelController(store: store)
     private let hotKey = HotKey()
@@ -14,6 +15,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var hotKeyError: String?
     private var hasPromptedAccessibility = false
     private static let lastSelectedKey = "lastSelectedItemID"
+
+    init(demo: DemoShot.Invocation? = nil) {
+        self.demo = demo
+        if let demo { try? FileManager.default.removeItem(at: demo.kind.directory) }
+        store = HistoryStore(directory: demo?.kind.directory)
+        super.init()
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -27,6 +35,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         status.menu = menu
         statusItem = status
         bezel.onSelect = { [weak self] in self?.paste($0) }
+        if let demo {
+            runDemo(demo)
+            return
+        }
         hotKey.onPress = { [weak self] in self?.showBezel() }
         preferences.onChange = { [weak self] in self?.hotKeyError = nil }
         let result = hotKey.register()
@@ -41,6 +53,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         watcher.stop()
         hotKey.unregister()
+        if let demo { try? FileManager.default.removeItem(at: demo.kind.directory) }
+    }
+
+    private func runDemo(_ demo: DemoShot.Invocation) {
+        let kind = demo.kind
+        kind.seed(into: store)
+        switch kind {
+        case .bezelText, .bezelImage:
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+                guard let self else { return }
+                let selected = self.store.items.indices.contains(kind.selection) ? self.store.items[kind.selection].id : nil
+                self.bezel.show(items: self.store.items, selectedID: selected, frontApp: nil)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                    if let view = self.bezel.snapshotSurface {
+                        DemoRender.write(view, radius: DemoRender.bezelRadius, light: false, to: demo.output)
+                    }
+                    NSApp.terminate(nil)
+                }
+            }
+        case .menu:
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                self?.popDemoMenu(demo)
+            }
+        }
+    }
+
+    private func popDemoMenu(_ demo: DemoShot.Invocation) {
+        guard statusItem?.button?.window != nil else { return }
+        let shoot = Timer(timeInterval: 0.8, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated {
+                if let view = NSApp.windows.first(where: { $0.level == .popUpMenu && $0.isVisible })?.contentView {
+                    DemoRender.write(view, radius: DemoRender.menuRadius, light: true, to: demo.output)
+                }
+                self?.statusItem?.menu?.cancelTracking()
+            }
+        }
+        let stop = Timer(timeInterval: 8, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated { self?.statusItem?.menu?.cancelTracking() }
+        }
+        RunLoop.main.add(shoot, forMode: .common)
+        RunLoop.main.add(stop, forMode: .common)
+        statusItem?.button?.performClick(nil)
+        NSApp.terminate(nil)
     }
 
     func menuWillOpen(_ menu: NSMenu) {
