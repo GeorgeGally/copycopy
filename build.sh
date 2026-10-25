@@ -24,5 +24,13 @@ cat > "$COPYCOPY_APP/Contents/Info.plist" <<'PLIST'
     <key>NSPrincipalClass</key><string>NSApplication</string>
 </dict></plist>
 PLIST
-codesign --force -s - "$COPYCOPY_APP"
+# Ad-hoc signatures change with every build, and macOS binds the Accessibility
+# grant to that signature. A code-signing identity named CopyCopy in the login
+# keychain keeps the grant across builds. COPYCOPY_SIGN_IDENTITY overrides it.
+COPYCOPY_IDENTITY="${COPYCOPY_SIGN_IDENTITY:-}"
+if [ -z "$COPYCOPY_IDENTITY" ] && security find-identity -v -p codesigning 2>/dev/null | grep -q '"CopyCopy"'; then
+    COPYCOPY_IDENTITY="CopyCopy"
+fi
+codesign --force -s "${COPYCOPY_IDENTITY:--}" "$COPYCOPY_APP"
+printf 'Signed with %s\n' "${COPYCOPY_IDENTITY:-an ad-hoc signature}"
 printf 'Built %s\n' "$COPYCOPY_APP"

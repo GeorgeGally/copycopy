@@ -31,7 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         preferences.onChange = { [weak self] in self?.hotKeyError = nil }
         let result = hotKey.register()
         NSLog("CopyCopy hotkey registration status: %d", result)
-        NSLog("CopyCopy accessibility trusted: %d", accessibilityTrusted(prompt: false) ? 1 : 0)
+        PasteLog.write("launch \(Bundle.main.bundlePath) trusted=\(accessibilityTrusted(prompt: false)) canPostEvents=\(CGPreflightPostEventAccess())")
         if result != noErr {
             hotKeyError = "Shortcut unavailable. Quit another app using \(hotKey.shortcut.title) and reopen CopyCopy."
         }
@@ -109,21 +109,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// lets this app post keystrokes and the target app is back in front.
     private func paste(_ item: HistoryItem) {
         UserDefaults.standard.set(item.id, forKey: Self.lastSelectedKey)
-        guard accessibilityTrusted(prompt: true) else {
+        let front = NSWorkspace.shared.frontmostApplication
+        let trusted = accessibilityTrusted(prompt: true)
+        PasteLog.write("return item=\(item.label.prefix(40).debugDescription) trusted=\(trusted) canPostEvents=\(CGPreflightPostEventAccess()) frontmost=\(Self.describe(front)) target=\(Self.describe(pasteTarget))")
+        guard trusted else {
             _ = copy(item)
-            NSLog("CopyCopy paste: copied only; Accessibility is not granted to this build")
+            PasteLog.write("copied only: Accessibility is not granted to this binary (a listed CopyCopy row may belong to an older build)")
             return
         }
         guard let target = pasteTarget, !target.isTerminated else {
             _ = copy(item)
-            NSLog("CopyCopy paste: copied only; no target app")
+            PasteLog.write("copied only: no target app")
             return
         }
-        if !target.isActive { target.activate() }
+        if !target.isActive {
+            PasteLog.write("activating \(Self.describe(target)) result=\(target.activate())")
+        }
         awaitFrontmost(target, waited: 0) { [weak self] in
             guard let self, self.copy(item) else { return }
+            PasteLog.write("pasteboard written: \((NSPasteboard.general.types ?? []).map(\.rawValue).joined(separator: " "))")
             self.sendPaste(to: target, attemptsRemaining: 30)
         }
+    }
+
+    private static func describe(_ app: NSRunningApplication?) -> String {
+        guard let app else { return "none" }
+        return "\(app.localizedName ?? "?")(\(app.processIdentifier))"
     }
 
     private func copy(_ item: HistoryItem) -> Bool {
@@ -154,7 +165,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let waited = waited + 0.02
             let frontmost = NSWorkspace.shared.frontmostApplication?.processIdentifier == target.processIdentifier
             if (frontmost && waited >= 0.06) || waited >= 0.4 {
-                if !frontmost { NSLog("CopyCopy paste: %@ did not come to the front in 400 ms", target.localizedName ?? "target") }
+                PasteLog.write("target frontmost=\(frontmost) after \(Int(waited * 1_000)) ms")
                 then()
             } else {
                 self.awaitFrontmost(target, waited: waited, then: then)
@@ -171,22 +182,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 .intersection([.maskCommand, .maskControl, .maskAlternate, .maskShift])
             guard modifiers.isEmpty, !self.bezel.isVisible else {
                 if attemptsRemaining > 0 { self.sendPaste(to: target, attemptsRemaining: attemptsRemaining - 1) }
-                else { NSLog("CopyCopy paste: gave up; modifiers held or bezel still visible") }
+                else { PasteLog.write("gave up: modifiers=\(modifiers.rawValue) bezelVisible=\(self.bezel.isVisible)") }
                 return
             }
-            guard NSWorkspace.shared.frontmostApplication?.processIdentifier == target.processIdentifier else {
-                NSLog("CopyCopy paste: %@ is no longer frontmost", target.localizedName ?? "target")
+            let front = NSWorkspace.shared.frontmostApplication
+            guard front?.processIdentifier == target.processIdentifier else {
+                PasteLog.write("not posted: frontmost is \(Self.describe(front)), target was \(Self.describe(target))")
                 return
             }
-            NSLog("CopyCopy paste: Command-V to %@ with %@", target.localizedName ?? "target",
-                  (NSPasteboard.general.types ?? []).map(\.rawValue).joined(separator: " "))
+            // Posted to the target's pid, so it does not depend on which window
+            // the window server believes has keyboard focus.
             let source = CGEventSource(stateID: .privateState)
             let down = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: true)
             let up = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: false)
             down?.flags = .maskCommand
             up?.flags = .maskCommand
-            down?.post(tap: .cghidEventTap)
-            up?.post(tap: .cghidEventTap)
+            down?.postToPid(target.processIdentifier)
+            up?.postToPid(target.processIdentifier)
+            PasteLog.write("posted Command-V created=\(down != nil && up != nil) toPid=\(target.processIdentifier) \(Self.describe(target))")
         }
     }
 
@@ -194,6 +207,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
         }
+        guard !accessibilityTrusted(prompt: false) else { return }
+        // A CopyCopy row that is switched on but belongs to an earlier build
+        // does not trust this one; only removing and re-adding it does.
+        let alert = NSAlert()
+        alert.messageText = "This copy of CopyCopy is not trusted yet"
+        alert.informativeText = "If CopyCopy is already listed and switched on, that entry belongs to an earlier build. Remove it with the minus button, then add this app again:\n\(Bundle.main.bundlePath)"
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 
     @discardableResult

@@ -258,7 +258,7 @@ final class BezelController: NSObject, NSWindowDelegate {
     private func select() {
         guard let item = state.selected else { return }
         guard pasteAvailable else {
-            state.notice = "Copied. Pasting needs Accessibility access."
+            state.notice = "Copied. Pasting needs Accessibility access for this build."
             onSelect?(item)
             transition += 1
             let currentTransition = transition

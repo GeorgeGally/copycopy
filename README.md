@@ -36,8 +36,13 @@ Pasting needs Accessibility access. The first Return asks for it with the
 system dialog; until it is granted the bezel says it copied and cannot paste
 yet, and the item is on the clipboard for Command + V. The menu-bar item Allow
 Pasting in Accessibility opens System Settings > Privacy & Security >
-Accessibility at any time. The app is ad-hoc signed, so a rebuilt app must be
-added there again. If another clipboard app owns the shortcut, quit it
+Accessibility at any time. The app is ad-hoc signed, so a rebuilt app is not
+trusted even while an older CopyCopy row shows as switched on: remove that row
+with the minus button and add the new app. To keep the grant across builds,
+create a code-signing certificate named CopyCopy in Keychain Access
+(Certificate Assistant > Create a Certificate, type Code Signing); build.sh
+signs with it when it exists. Every paste attempt is logged to
+`~/Library/Application Support/CopyCopy/paste.log`. If another clipboard app owns the shortcut, quit it
 and relaunch CopyCopy, or record a different shortcut in Preferences.
 
 ## Storage
