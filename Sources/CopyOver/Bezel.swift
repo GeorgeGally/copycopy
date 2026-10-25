@@ -78,27 +78,31 @@ final class BezelRootView: NSView {
 @MainActor
 final class BezelState: ObservableObject {
     @Published var items: [HistoryItem] = []
-    @Published var selection = 0
+    @Published private(set) var selection = 0
     /// Replaces the counter for a moment when Return could only copy.
     @Published var notice: String?
-    private var wrapped = false
+    /// Ticks whenever the selection moves, so the strip follows even when the
+    /// item under it did not change. Zero direction means it was placed, not
+    /// stepped, and the strip should jump to it instead of scrolling.
+    @Published private(set) var moves = 0
+    private(set) var direction = 0
 
     var selected: HistoryItem? { items.indices.contains(selection) ? items[selection] : nil }
 
     func step(_ direction: Int) {
         guard !items.isEmpty else { return }
-        let next = (selection + direction + items.count) % items.count
-        wrapped = items.count > 1 && next != selection
-            && (direction > 0 ? next < selection : next > selection)
-        if wrapped { NSLog("CopyOver selection wrapped %d -> %d", selection, next) }
+        self.direction = direction
+        moves += 1
         withAnimation(BezelMetrics.selectionSpring) {
-            selection = next
+            selection = (selection + direction + items.count) % items.count
         }
     }
 
-    func consumeWrap() -> Bool {
-        defer { wrapped = false }
-        return wrapped
+    func place(_ index: Int) {
+        guard items.indices.contains(index) else { return }
+        direction = 0
+        moves += 1
+        selection = index
     }
 }
 
@@ -211,7 +215,7 @@ final class BezelController: NSObject, NSWindowDelegate {
             return
         }
         state.items = items
-        state.selection = items.firstIndex { $0.id == selectedID } ?? 0
+        state.place(items.firstIndex { $0.id == selectedID } ?? 0)
         state.notice = nil
         transition += 1
         isOpen = true
@@ -300,6 +304,7 @@ private struct BezelView: View {
     let store: HistoryStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var scrolled: Int?
+    @State private var position = 0
 
     var body: some View {
         GeometryReader { geometry in
@@ -312,9 +317,11 @@ private struct BezelView: View {
                 } else {
                     ScrollView(.horizontal) {
                         LazyHStack(spacing: BezelMetrics.itemSpacing) {
-                            ForEach(Array(state.items.enumerated()), id: \.element.id) { index, item in
-                                ClipCard(item: item, imageURL: store.imageURL(for: item), selected: state.selection == index)
-                                    .id(index)
+                            ForEach(Array(0..<(state.items.count * 3)), id: \.self) { ring in
+                                let index = ring % state.items.count
+                                ClipCard(item: state.items[index], imageURL: store.imageURL(for: state.items[index]),
+                                         selected: state.selection == index)
+                                    .id(ring)
                             }
                         }
                         .scrollTargetLayout()
@@ -332,17 +339,10 @@ private struct BezelView: View {
                                 .frame(width: BezelMetrics.edgeFade)
                         }
                     )
-                    .onChange(of: state.selection) { _, selected in
-                        if state.consumeWrap() {
-                            var transaction = Transaction()
-                            transaction.disablesAnimations = true
-                            withTransaction(transaction) { scrolled = selected }
-                        } else {
-                            withAnimation(reduceMotion ? nil : BezelMetrics.selectionSpring) { scrolled = selected }
-                        }
+                    .onChange(of: state.moves) { _, _ in
+                        if state.direction == 0 { center() } else { advance() }
                     }
-                    .onChange(of: state.items) { _, _ in scrolled = state.selection }
-                    .onAppear { scrolled = state.selection }
+                    .onAppear { center() }
                     .frame(height: BezelMetrics.itemSize.height)
                 }
                 Text(state.notice ?? (state.items.isEmpty ? "0 of 0" : "\(state.selection + 1) of \(state.items.count)"))
@@ -357,6 +357,41 @@ private struct BezelView: View {
             .frame(width: geometry.size.width, height: geometry.size.height)
         }
         .preferredColorScheme(.dark)
+    }
+
+    /// The list is drawn three times; the live item sits in the middle copy so
+    /// a step past either end lands on a real neighbour and scrolls there.
+    private func advance() {
+        let count = state.items.count
+        guard count > 1 else { return }
+        let settled = count + position % count
+        if settled != position {
+            scroll(to: settled, animated: false)
+            position = settled
+        }
+        position += state.direction
+        scroll(to: position, animated: !reduceMotion)
+        let moved = position
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            guard position == moved, state.items.count == count else { return }
+            center()
+        }
+    }
+
+    private func center() {
+        guard !state.items.isEmpty else { return }
+        position = state.items.count + state.selection
+        scroll(to: position, animated: false)
+    }
+
+    private func scroll(to target: Int, animated: Bool) {
+        if animated {
+            withAnimation(BezelMetrics.selectionSpring) { scrolled = target }
+        } else {
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) { scrolled = target }
+        }
     }
 }
 
