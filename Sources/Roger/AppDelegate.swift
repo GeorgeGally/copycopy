@@ -27,7 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NSApp.setActivationPolicy(.accessory)
         NSLog("Roger history loaded: %d items", store.items.count)
         let status = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        status.button?.image = NSImage(systemSymbolName: "square.on.square", accessibilityDescription: "Roger")
+        status.button?.image = Self.menuBarIcon()
         status.button?.toolTip = "Roger"
         status.button?.setAccessibilityLabel("Roger")
         let menu = NSMenu()
@@ -48,6 +48,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             hotKeyError = "Shortcut unavailable. Quit another app using \(hotKey.shortcut.title) and reopen Roger."
         }
         watcher.start()
+    }
+
+    /// The bowtie from Resources, drawn by scripts/make-icon.swift. As a
+    /// template image macOS tints it for light and dark menu bars itself.
+    private static func menuBarIcon() -> NSImage? {
+        guard let icon = NSImage(named: "MenuBarIcon") else {
+            return NSImage(systemSymbolName: "square.on.square", accessibilityDescription: "Roger")
+        }
+        icon.isTemplate = true
+        icon.accessibilityDescription = "Roger"
+        return icon
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -74,6 +85,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .menu:
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
                 self?.popDemoMenu(demo)
+            }
+        case .menuBar:
+            // The status item and its neighbours, in whichever appearance
+            // the menu bar is in right now.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                guard let self, let item = self.statusItem?.button?.window?.frame else {
+                    self?.endDemo(false)
+                    return
+                }
+                self.endDemo(DemoCapture.write(nil, region: item.insetBy(dx: -90, dy: 0), to: demo.output))
             }
         }
     }

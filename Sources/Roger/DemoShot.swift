@@ -2,13 +2,15 @@ import AppKit
 import ScreenCaptureKit
 import os
 
-/// `--demo-shot bezel|menu --demo-out <png>` seeds a throwaway history,
-/// opens the bezel or the menu over a plain backdrop and saves what is on
-/// screen. The pixels are the app's own windows as the window server draws
-/// them, at the display's scale; nothing is painted by hand.
+/// `--demo-shot bezel|menu|menubar --demo-out <png>` seeds a throwaway
+/// history, opens the bezel or the menu over a plain backdrop, or finds the
+/// status item in the menu bar, and saves what is on screen. The pixels are
+/// the windows as the window server draws them, at the display's scale;
+/// nothing is painted by hand.
 enum DemoShot: String {
     case bezel
     case menu
+    case menuBar = "menubar"
 
     struct Invocation {
         let kind: DemoShot
@@ -77,17 +79,17 @@ enum DemoCapture {
 
     /// Writes `region` as the window server draws it, at the display's pixel
     /// density: the given windows and the backdrop under them, with every
-    /// other app's windows left out. Reading another process's windows needs
-    /// Screen Recording access, so this fails loudly without it rather than
-    /// writing a blank picture.
+    /// other app's windows left out, or the whole screen when `windows` is
+    /// nil. Reading another process's windows needs Screen Recording access,
+    /// so this fails loudly without it rather than writing a blank picture.
     ///
     /// The capture is asynchronous, but the menu runs its own tracking loop
     /// that never drains a task queued on the main actor, so this waits here.
     @discardableResult
-    static func write(_ windows: [NSWindow], region: NSRect, to url: URL) -> Bool {
+    static func write(_ windows: [NSWindow]?, region: NSRect, to url: URL) -> Bool {
         guard let screen = NSScreen.screens.first(where: { $0.frame.contains(NSPoint(x: region.midX, y: region.midY)) })
                 ?? NSScreen.screens.first else { return false }
-        let windowIDs = windows.map { CGWindowID($0.windowNumber) }
+        let windowIDs = windows.map { $0.map { CGWindowID($0.windowNumber) } }
         let displayID = screen.displayID
         let scale = screen.backingScaleFactor
         let source = CGRect(x: region.minX - screen.frame.minX, y: screen.frame.maxY - region.maxY,
@@ -107,7 +109,7 @@ enum DemoCapture {
         return wrote.withLock { $0 }
     }
 
-    private nonisolated static func capture(windowIDs: [CGWindowID], displayID: CGDirectDisplayID,
+    private nonisolated static func capture(windowIDs: [CGWindowID]?, displayID: CGDirectDisplayID,
                                             source: CGRect, pixels: CGSize, to url: URL) async -> Bool {
         let content: SCShareableContent
         do {
@@ -123,9 +125,9 @@ enum DemoCapture {
             report("could not find the display holding the demo windows")
             return false
         }
-        let own = Set(windowIDs)
+        let own = windowIDs.map(Set.init)
         let filter = SCContentFilter(display: display,
-                                     excludingWindows: content.windows.filter { !own.contains($0.windowID) })
+                                     excludingWindows: content.windows.filter { own?.contains($0.windowID) == false })
         let configuration = SCStreamConfiguration()
         configuration.sourceRect = source
         configuration.width = Int(pixels.width)

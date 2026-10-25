@@ -5,8 +5,10 @@ ROGER_ROOT="$(cd "$(dirname "$0")" && pwd -P)"
 "$ROGER_ROOT/scripts/swift-package.sh" build -c release
 ROGER_BIN="$("$ROGER_ROOT/scripts/swift-package.sh" build -c release --show-bin-path)"
 ROGER_APP="$ROGER_ROOT/dist/Roger.app"
-mkdir -p "$ROGER_APP/Contents/MacOS"
+mkdir -p "$ROGER_APP/Contents/MacOS" "$ROGER_APP/Contents/Resources"
 cp "$ROGER_BIN/Roger" "$ROGER_APP/Contents/MacOS/Roger"
+# The icons are drawn by scripts/make-icon.swift; rerun it after changing the mark.
+cp "$ROGER_ROOT/Resources/AppIcon.icns" "$ROGER_ROOT/Resources/MenuBarIcon.png" "$ROGER_ROOT/Resources/MenuBarIcon@2x.png" "$ROGER_APP/Contents/Resources/"
 cat > "$ROGER_APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -15,6 +17,7 @@ cat > "$ROGER_APP/Contents/Info.plist" <<'PLIST'
     <key>CFBundleIdentifier</key><string>com.george.roger</string>
     <key>CFBundleName</key><string>Roger</string>
     <key>CFBundleDisplayName</key><string>Roger</string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>0.1.0</string>
     <key>CFBundleVersion</key><string>1</string>
