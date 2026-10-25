@@ -1,5 +1,7 @@
 # Roger
 
+![Roger Moore as James Bond](docs/screenshots/roger-moore.png)
+
 A clipboard history for macOS: every text, image and file you copy, one
 keystroke away in the menu bar.
 
@@ -37,6 +39,8 @@ Change it in Preferences.
 ![The bezel open on a text item](docs/screenshots/bezel.png)
 
 ![The menu-bar menu with text and image rows](docs/screenshots/menu.png)
+
+![I copy, over and out](docs/screenshots/copy-that.png)
 
 ## License
 
