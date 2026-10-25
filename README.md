@@ -16,6 +16,10 @@ Download `Roger.app` from the [Releases page](https://github.com/GeorgeGally/rog
 3. When macOS asks for Accessibility, turn it on. Roger needs it to paste for
    you; until then Return only copies.
 
+Accessibility is the only permission Roger asks for, and only to press
+Command + V in the app you came from. It never asks for Screen Recording,
+the camera, the microphone, or your files, and it never touches the network.
+
 Roger is not notarized: there is no Apple Developer ID behind it. On macOS 15
 and later the first launch is blocked. Open System Settings > Privacy &
 Security, scroll to the notice about Roger, and click Open Anyway. After that

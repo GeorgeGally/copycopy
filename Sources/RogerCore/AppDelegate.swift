@@ -3,8 +3,7 @@ import ApplicationServices
 import Carbon.HIToolbox
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
-    private let demo: DemoShot.Invocation?
+package final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let store: HistoryStore
     private lazy var watcher = ClipboardWatcher(store: store)
     private lazy var bezel = BezelController(store: store)
@@ -16,14 +15,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var hasPromptedAccessibility = false
     private static let lastSelectedKey = "lastSelectedItemID"
 
-    init(demo: DemoShot.Invocation? = nil) {
-        self.demo = demo
-        if let demo { try? FileManager.default.removeItem(at: demo.kind.directory) }
-        store = HistoryStore(directory: demo?.kind.directory)
+    package init(store: HistoryStore = HistoryStore()) {
+        self.store = store
         super.init()
     }
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    package func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         NSLog("Roger history loaded: %d items", store.items.count)
         let status = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -35,10 +32,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         status.menu = menu
         statusItem = status
         bezel.onSelect = { [weak self] in self?.paste($0) }
-        if let demo {
-            runDemo(demo)
-            return
-        }
         hotKey.onPress = { [weak self] in self?.showBezel() }
         preferences.onChange = { [weak self] in self?.hotKeyError = nil }
         let result = hotKey.register()
@@ -52,8 +45,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// The bowtie from Resources, drawn by scripts/make-icon.swift. As a
     /// template image macOS tints it for light and dark menu bars itself.
-    private static func menuBarIcon() -> NSImage? {
-        guard let icon = NSImage(named: "MenuBarIcon") else {
+    /// roger-shot has no bundle, so it hands the 1x file in and the @2x
+    /// beside it is picked up the way a bundle would.
+    package static func menuBarIcon(file: URL? = nil) -> NSImage? {
+        guard let icon = file.flatMap(Self.image(at:)) ?? NSImage(named: "MenuBarIcon") else {
             return NSImage(systemSymbolName: "square.on.square", accessibilityDescription: "Roger")
         }
         icon.isTemplate = true
@@ -61,93 +56,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return icon
     }
 
-    func applicationWillTerminate(_ notification: Notification) {
+    private static func image(at file: URL) -> NSImage? {
+        guard let icon = NSImage(contentsOf: file) else { return nil }
+        let doubled = file.deletingLastPathComponent()
+            .appendingPathComponent(file.deletingPathExtension().lastPathComponent + "@2x")
+            .appendingPathExtension(file.pathExtension)
+        if let rep = NSImageRep(contentsOf: doubled) {
+            rep.size = icon.size
+            icon.addRepresentation(rep)
+        }
+        return icon
+    }
+
+    package func applicationWillTerminate(_ notification: Notification) {
         watcher.stop()
         hotKey.unregister()
-        if let demo { try? FileManager.default.removeItem(at: demo.kind.directory) }
     }
 
-    private func runDemo(_ demo: DemoShot.Invocation) {
-        let kind = demo.kind
-        kind.seed(into: store, photo: demo.photo)
-        switch kind {
-        case .bezel:
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
-                guard let self else { return }
-                let selected = self.store.items.indices.contains(DemoShot.selection) ? self.store.items[DemoShot.selection].id : nil
-                self.bezel.show(items: self.store.items, selectedID: selected, frontApp: nil)
-                let region = self.bezel.frame
-                let backdrop = DemoCapture.backdrop(region)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                    self.endDemo(DemoCapture.write([backdrop, self.bezel.window], region: region, to: demo.output))
-                }
-            }
-        case .menu:
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
-                self?.popDemoMenu(demo)
-            }
-        case .menuBar:
-            // The status item and its neighbours, in whichever appearance
-            // the menu bar is in right now.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
-                guard let self, let item = self.statusItem?.button?.window?.frame else {
-                    self?.endDemo(false)
-                    return
-                }
-                self.endDemo(DemoCapture.write(nil, region: item.insetBy(dx: -90, dy: 0), to: demo.output))
-            }
-        }
-    }
-
-    /// The menu runs its own tracking loop, so the shot is taken from timers
-    /// on the common run-loop modes: one to stage the backdrop once the menu
-    /// is up, one to capture after the glass has settled over it.
-    private func popDemoMenu(_ demo: DemoShot.Invocation) {
-        guard statusItem?.button?.window != nil else {
-            endDemo(false)
-            return
-        }
-        var staged: (backdrop: NSWindow, menu: NSWindow, region: NSRect)?
-        let stage = Timer(timeInterval: 0.8, repeats: false) { _ in
-            MainActor.assumeIsolated {
-                guard let menu = NSApp.windows.first(where: { $0.level == .popUpMenu && $0.isVisible }) else { return }
-                let frame = menu.frame
-                let region = NSRect(x: frame.midX - DemoShot.width / 2,
-                                    y: frame.minY - DemoCapture.menuMarginBottom,
-                                    width: DemoShot.width,
-                                    height: frame.height + DemoCapture.menuMarginTop + DemoCapture.menuMarginBottom)
-                staged = (DemoCapture.backdrop(region), menu, region)
-            }
-        }
-        let shoot = Timer(timeInterval: 1.4, repeats: false) { [weak self] _ in
-            MainActor.assumeIsolated {
-                var wrote = false
-                if let staged {
-                    wrote = DemoCapture.write([staged.backdrop, staged.menu], region: staged.region, to: demo.output)
-                }
-                self?.statusItem?.menu?.cancelTracking()
-                self?.endDemo(wrote)
-            }
-        }
-        let stop = Timer(timeInterval: 8, repeats: false) { [weak self] _ in
-            MainActor.assumeIsolated {
-                self?.statusItem?.menu?.cancelTracking()
-                self?.endDemo(false)
-            }
-        }
-        for timer in [stage, shoot, stop] { RunLoop.main.add(timer, forMode: .common) }
-        statusItem?.button?.performClick(nil)
-    }
-
-    /// Ends the shot with the caller's status. `terminate` only unwinds to the
-    /// run loop, so the temporary history is removed here and the process is
-    /// left directly.
-    private func endDemo(_ wrote: Bool) {
-        if let demo { try? FileManager.default.removeItem(at: demo.kind.directory) }
-        exit(wrote ? 0 : 1)
-    }
-
-    func menuWillOpen(_ menu: NSMenu) {
+    package func menuWillOpen(_ menu: NSMenu) {
         pasteTarget = NSWorkspace.shared.frontmostApplication
         menu.removeAllItems()
         menu.minimumWidth = 300

@@ -1,7 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
 import Testing
-@testable import Roger
+@testable import RogerCore
 
 @Suite(.serialized)
 @MainActor

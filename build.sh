@@ -2,8 +2,8 @@
 set -euo pipefail
 
 ROGER_ROOT="$(cd "$(dirname "$0")" && pwd -P)"
-"$ROGER_ROOT/scripts/swift-package.sh" build -c release
-ROGER_BIN="$("$ROGER_ROOT/scripts/swift-package.sh" build -c release --show-bin-path)"
+"$ROGER_ROOT/scripts/swift-package.sh" build -c release --product Roger
+ROGER_BIN="$("$ROGER_ROOT/scripts/swift-package.sh" build -c release --product Roger --show-bin-path)"
 ROGER_APP="$ROGER_ROOT/dist/Roger.app"
 mkdir -p "$ROGER_APP/Contents/MacOS" "$ROGER_APP/Contents/Resources"
 cp "$ROGER_BIN/Roger" "$ROGER_APP/Contents/MacOS/Roger"

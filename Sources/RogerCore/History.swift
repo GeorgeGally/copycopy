@@ -8,8 +8,8 @@ enum ClipContent: Codable, Equatable {
     case files([URL])
 }
 
-struct HistoryItem: Codable, Identifiable, Equatable {
-    let id: String
+package struct HistoryItem: Codable, Identifiable, Equatable {
+    package let id: String
     let content: ClipContent
     var copiedAt: Date
 
@@ -34,10 +34,10 @@ struct HistoryItem: Codable, Identifiable, Equatable {
 }
 
 @MainActor
-final class HistoryStore: ObservableObject {
+package final class HistoryStore: ObservableObject {
     static let textLimit = 2 * 1_024 * 1_024
     static let imageLimit = 40 * 1_024 * 1_024
-    @Published private(set) var items: [HistoryItem] = []
+    @Published package private(set) var items: [HistoryItem] = []
     @Published private(set) var errorMessage: String?
     let directory: URL
     private let itemLimit: Int
@@ -50,7 +50,7 @@ final class HistoryStore: ObservableObject {
         var items: [HistoryItem]
     }
 
-    init(directory: URL? = nil, itemLimit: Int = 200, imageBudget: Int = 500 * 1_024 * 1_024) {
+    package init(directory: URL? = nil, itemLimit: Int = 200, imageBudget: Int = 500 * 1_024 * 1_024) {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         self.directory = directory ?? support.appendingPathComponent("Roger", isDirectory: true)
         self.itemLimit = itemLimit
@@ -93,13 +93,13 @@ final class HistoryStore: ObservableObject {
         try FileManager.default.copyItem(at: legacy, to: destination)
     }
 
-    func recordText(_ text: String) {
+    package func recordText(_ text: String) {
         guard !text.isEmpty, text.utf8.count <= Self.textLimit else { return }
         let id = HistoryItem.fingerprint(kind: "text", data: Data(text.utf8))
         insert(HistoryItem(id: id, content: .text(text), copiedAt: Date()))
     }
 
-    func recordPNG(_ data: Data) {
+    package func recordPNG(_ data: Data) {
         guard !data.isEmpty, data.count <= Self.imageLimit else { return }
         let id = HistoryItem.fingerprint(kind: "image", data: data)
         let filename = id + ".png"
@@ -115,7 +115,7 @@ final class HistoryStore: ObservableObject {
         }
     }
 
-    func recordFiles(_ urls: [URL]) {
+    package func recordFiles(_ urls: [URL]) {
         let urls = urls.filter(\.isFileURL).map(\.standardizedFileURL)
         guard !urls.isEmpty else { return }
         do {

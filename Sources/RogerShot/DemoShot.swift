@@ -1,12 +1,17 @@
 import AppKit
+import RogerCore
 import ScreenCaptureKit
 import os
 
-/// `--demo-shot bezel|menu|menubar --demo-out <png>` seeds a throwaway
-/// history, opens the bezel or the menu over a plain backdrop, or finds the
-/// status item in the menu bar, and saves what is on screen. The pixels are
-/// the windows as the window server draws them, at the display's scale;
-/// nothing is painted by hand.
+/// `roger-shot bezel|menu|menubar --out <png> [--photo <png>] [--icon <png>]`
+/// seeds a throwaway history, opens the bezel or the menu over a plain
+/// backdrop, or finds the status item in the menu bar, and saves what is on
+/// screen. The pixels are the windows as the window server draws them, at
+/// the display's scale; nothing is painted by hand.
+///
+/// This is a development tool for the README. It reads other processes'
+/// windows, so it needs Screen Recording; the shipped app never links
+/// ScreenCaptureKit and never asks for it.
 enum DemoShot: String {
     case bezel
     case menu
@@ -16,18 +21,22 @@ enum DemoShot: String {
         let kind: DemoShot
         let output: URL
         let photo: URL?
+        /// The menu-bar icon, since the tool has no bundle to load it from.
+        let icon: URL?
+    }
+
+    static let usage = "usage: roger-shot bezel|menu|menubar --out <png> [--photo <png>] [--icon <png>]"
+
+    private static func path(_ flag: String, in arguments: [String]) -> URL? {
+        arguments.firstIndex(of: flag).flatMap { index -> URL? in
+            arguments.indices.contains(index + 1) ? URL(fileURLWithPath: arguments[index + 1]) : nil
+        }
     }
 
     static func parse(_ arguments: [String]) -> Invocation? {
-        guard let shot = arguments.firstIndex(of: "--demo-shot"),
-              arguments.indices.contains(shot + 1),
-              let kind = DemoShot(rawValue: arguments[shot + 1]),
-              let out = arguments.firstIndex(of: "--demo-out"),
-              arguments.indices.contains(out + 1) else { return nil }
-        let photo = arguments.firstIndex(of: "--demo-photo").flatMap { index -> URL? in
-            arguments.indices.contains(index + 1) ? URL(fileURLWithPath: arguments[index + 1]) : nil
-        }
-        return Invocation(kind: kind, output: URL(fileURLWithPath: arguments[out + 1]), photo: photo)
+        guard arguments.count > 1, let kind = DemoShot(rawValue: arguments[1]),
+              let output = path("--out", in: arguments) else { return nil }
+        return Invocation(kind: kind, output: output, photo: path("--photo", in: arguments), icon: path("--icon", in: arguments))
     }
 
     var directory: URL {
@@ -117,7 +126,7 @@ enum DemoCapture {
         } catch {
             report("""
             screen capture is not allowed (\(error.localizedDescription)). \
-            Allow Roger in System Settings > Privacy & Security > Screen Recording, then take the shot again.
+            Allow the terminal running roger-shot in System Settings > Privacy & Security > Screen Recording, then take the shot again.
             """)
             return false
         }
@@ -152,7 +161,7 @@ enum DemoCapture {
     }
 
     private nonisolated static func report(_ message: String) {
-        FileHandle.standardError.write(Data("Roger demo: \(message)\n".utf8))
+        FileHandle.standardError.write(Data("roger-shot: \(message)\n".utf8))
     }
 }
 

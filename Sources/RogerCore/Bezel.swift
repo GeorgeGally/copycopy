@@ -6,7 +6,7 @@ import SwiftUI
 /// Every radius in the bezel is concentric: the panel's inner radius equals
 /// the item radius plus the inset between them, and an image is clipped at
 /// the item radius because it fills its item edge to edge.
-enum BezelMetrics {
+package enum BezelMetrics {
     static let cornerRadius: CGFloat = 24
     static let inset: CGFloat = 14
     static let itemRadius: CGFloat = cornerRadius - inset
@@ -14,11 +14,11 @@ enum BezelMetrics {
     static let itemSpacing: CGFloat = 20
     static let counterGap: CGFloat = 10
     static let counterHeight: CGFloat = 16
-    static let width: CGFloat = 720
+    package static let width: CGFloat = 720
     static let height = inset + itemSize.height + counterGap + counterHeight + inset
     static let edgeFade: CGFloat = 36
     /// Transparent margin around the surface that holds its shadow.
-    static let shadowMargin: CGFloat = 64
+    package static let shadowMargin: CGFloat = 64
     static let selectionSpring = Animation.spring(duration: 0.26, bounce: 0)
 }
 
@@ -135,7 +135,7 @@ final class BezelPanel: NSPanel {
 }
 
 @MainActor
-final class BezelController: NSObject, NSWindowDelegate {
+package final class BezelController: NSObject, NSWindowDelegate {
     let state = BezelState()
     private let panel: BezelPanel
     private var transition = 0
@@ -145,7 +145,7 @@ final class BezelController: NSObject, NSWindowDelegate {
     /// and says so instead of pretending to paste.
     var pasteAvailable = true
 
-    init(store: HistoryStore) {
+    package init(store: HistoryStore) {
         let margin = BezelMetrics.shadowMargin
         panel = BezelPanel(contentRect: NSRect(x: 0, y: 0, width: BezelMetrics.width + margin * 2, height: BezelMetrics.height + margin * 2),
                           styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
@@ -205,12 +205,12 @@ final class BezelController: NSObject, NSWindowDelegate {
     }
 
     var isVisible: Bool { panel.isVisible }
-    var window: NSWindow { panel }
-    var frame: NSRect { panel.frame }
+    package var window: NSWindow { panel }
+    package var frame: NSRect { panel.frame }
 
     /// Opens on `selectedID` when it is still in the history, so the bezel
     /// picks up where the last paste left off.
-    func show(items: [HistoryItem], selectedID: String? = nil, frontApp: NSRunningApplication?) {
+    package func show(items: [HistoryItem], selectedID: String? = nil, frontApp: NSRunningApplication?) {
         if isOpen {
             state.step(NSEvent.modifierFlags.contains(.shift) ? -1 : 1)
             return
@@ -257,7 +257,7 @@ final class BezelController: NSObject, NSWindowDelegate {
         }
     }
 
-    func windowDidResignKey(_ notification: Notification) { dismiss() }
+    package func windowDidResignKey(_ notification: Notification) { dismiss() }
 
     /// Return closes the panel at once, with no fade, so keyboard focus is back
     /// with the target app before the paste keystroke is posted.
