@@ -410,7 +410,7 @@ private struct ClipCard: View {
             }
         }
         .frame(width: size.width, height: size.height)
-        .scaleEffect(selected ? 1 : 0.92)
+        .scaleEffect(selected ? 1 : 0.86)
         .opacity(selected ? 1 : 0.34)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(item.label)

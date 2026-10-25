@@ -51,6 +51,7 @@ enum DemoRender {
     static let bezelRadius = BezelMetrics.cornerRadius
     static let menuRadius: CGFloat = 11
 
+    @discardableResult
     static func write(_ view: NSView, radius: CGFloat, light: Bool, to url: URL) -> Bool {
         let size = view.bounds.size
         guard size.width > 1, size.height > 1,
