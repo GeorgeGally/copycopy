@@ -42,6 +42,10 @@ Change it in Preferences.
 
 ![I copy, over and out](docs/screenshots/copy-that.png)
 
+## Support
+
+If Roger saves you time, you can [buy me a coffee](https://buymeacoffee.com/radarboy3000).
+
 ## License
 
 [MIT](LICENSE).
