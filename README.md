@@ -20,9 +20,12 @@ Hotkey: Command + Option + Control + V. Change it in Preferences.
 
 Requires macOS 14 or newer and the Command Line Tools (a Swift toolchain).
 
-The build uses Swift Package Manager and ad-hoc signing. Xcode and third-party
-dependencies are not required. Run the script from any directory. The app stays
-in the menu bar and does not appear in the Dock.
+The build uses Swift Package Manager and signs with the CopyOver Local Signing
+certificate from the login keychain when the certificate is present, so the
+Accessibility grant survives a rebuild. Without it the app is signed ad-hoc and
+the script says so. Xcode and third-party dependencies are not required. Run the
+script from any directory. The app stays in the menu bar and does not appear in
+the Dock.
 
 ## Use
 
@@ -44,12 +47,13 @@ Pasting needs Accessibility access. The first Return asks for it with the
 system dialog; until it is granted the bezel says it copied and cannot paste
 yet, and the item is on the clipboard for Command + V. The menu-bar item Allow
 Pasting in Accessibility opens System Settings > Privacy & Security >
-Accessibility at any time. The app is ad-hoc signed, so a rebuilt app is not
-trusted even while an older CopyOver row shows as switched on: remove that row
-with the minus button and add the new app. To keep the grant across builds,
-create a code-signing certificate named CopyOver in Keychain Access
-(Certificate Assistant > Create a Certificate, type Code Signing); build.sh
-signs with it when it exists. Every paste attempt is logged to
+Accessibility at any time. A build signed with the CopyOver Local Signing
+certificate keeps its grant. Without that certificate the app is signed ad-hoc,
+so a rebuilt app is not trusted even while an older CopyOver row shows as
+switched on: remove that row with the minus button and add the new app. To
+create the certificate, use Keychain Access (Certificate Assistant > Create a
+Certificate, type Code Signing, name CopyOver Local Signing); build.sh signs
+with it when it exists. Every paste attempt is logged to
 `~/Library/Application Support/CopyOver/paste.log`. If another clipboard app owns the shortcut, quit it
 and relaunch CopyOver, or record a different shortcut in Preferences.
 

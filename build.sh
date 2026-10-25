@@ -24,13 +24,15 @@ cat > "$COPYOVER_APP/Contents/Info.plist" <<'PLIST'
     <key>NSPrincipalClass</key><string>NSApplication</string>
 </dict></plist>
 PLIST
-# Ad-hoc signatures change with every build, and macOS binds the Accessibility
-# grant to that signature. A code-signing identity named CopyOver in the login
-# keychain keeps the grant across builds. COPYOVER_SIGN_IDENTITY overrides it.
-COPYOVER_IDENTITY="${COPYOVER_SIGN_IDENTITY:-}"
-if [ -z "$COPYOVER_IDENTITY" ] && security find-identity -v -p codesigning 2>/dev/null | grep -q '"CopyOver"'; then
-    COPYOVER_IDENTITY="CopyOver"
+# macOS binds the Accessibility grant to the signature, so a stable identity
+# keeps the grant across builds. Without one the app is ad-hoc signed and the
+# grant has to be given again after every rebuild.
+COPYOVER_IDENTITY="${COPYOVER_SIGN_IDENTITY:-CopyOver Local Signing}"
+if security find-identity -v -p codesigning 2>/dev/null | grep -qF "\"$COPYOVER_IDENTITY\""; then
+    codesign --force --deep -s "$COPYOVER_IDENTITY" "$COPYOVER_APP"
+    printf 'Signed with %s\n' "$COPYOVER_IDENTITY"
+else
+    codesign --force --deep -s - "$COPYOVER_APP"
+    printf 'No "%s" identity in the keychain: signed ad-hoc, so macOS will ask for Accessibility again after each build.\n' "$COPYOVER_IDENTITY"
 fi
-codesign --force -s "${COPYOVER_IDENTITY:--}" "$COPYOVER_APP"
-printf 'Signed with %s\n' "${COPYOVER_IDENTITY:-an ad-hoc signature}"
 printf 'Built %s\n' "$COPYOVER_APP"
