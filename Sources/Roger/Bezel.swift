@@ -205,7 +205,8 @@ final class BezelController: NSObject, NSWindowDelegate {
     }
 
     var isVisible: Bool { panel.isVisible }
-    var snapshotSurface: NSView? { (panel.contentView as? BezelRootView)?.surface }
+    var window: NSWindow { panel }
+    var frame: NSRect { panel.frame }
 
     /// Opens on `selectedID` when it is still in the history, so the bezel
     /// picks up where the last paste left off.

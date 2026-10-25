@@ -58,17 +58,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func runDemo(_ demo: DemoShot.Invocation) {
         let kind = demo.kind
-        kind.seed(into: store)
+        kind.seed(into: store, photo: demo.photo)
         switch kind {
-        case .bezelText, .bezelImage:
+        case .bezel:
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
                 guard let self else { return }
-                let selected = self.store.items.indices.contains(kind.selection) ? self.store.items[kind.selection].id : nil
+                let selected = self.store.items.indices.contains(DemoShot.selection) ? self.store.items[DemoShot.selection].id : nil
                 self.bezel.show(items: self.store.items, selectedID: selected, frontApp: nil)
+                let region = self.bezel.frame
+                let backdrop = DemoCapture.backdrop(region)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                    if let view = self.bezel.snapshotSurface {
-                        DemoRender.write(view, radius: DemoRender.bezelRadius, light: false, to: demo.output)
-                    }
+                    DemoCapture.write([backdrop, self.bezel.window], region: region, to: demo.output)
                     NSApp.terminate(nil)
                 }
             }
@@ -79,12 +79,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    /// The menu runs its own tracking loop, so the shot is taken from timers
+    /// on the common run-loop modes: one to stage the backdrop once the menu
+    /// is up, one to capture after the glass has settled over it.
     private func popDemoMenu(_ demo: DemoShot.Invocation) {
         guard statusItem?.button?.window != nil else { return }
-        let shoot = Timer(timeInterval: 0.8, repeats: false) { [weak self] _ in
+        var staged: (backdrop: NSWindow, menu: NSWindow, region: NSRect)?
+        let stage = Timer(timeInterval: 0.8, repeats: false) { _ in
             MainActor.assumeIsolated {
-                if let view = NSApp.windows.first(where: { $0.level == .popUpMenu && $0.isVisible })?.contentView {
-                    DemoRender.write(view, radius: DemoRender.menuRadius, light: true, to: demo.output)
+                guard let menu = NSApp.windows.first(where: { $0.level == .popUpMenu && $0.isVisible }) else { return }
+                let frame = menu.frame
+                let region = NSRect(x: frame.midX - DemoShot.width / 2,
+                                    y: frame.minY - DemoCapture.menuMarginBottom,
+                                    width: DemoShot.width,
+                                    height: frame.height + DemoCapture.menuMarginTop + DemoCapture.menuMarginBottom)
+                staged = (DemoCapture.backdrop(region), menu, region)
+            }
+        }
+        let shoot = Timer(timeInterval: 1.4, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated {
+                if let staged {
+                    DemoCapture.write([staged.backdrop, staged.menu], region: staged.region, to: demo.output)
                 }
                 self?.statusItem?.menu?.cancelTracking()
             }
@@ -92,8 +107,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let stop = Timer(timeInterval: 8, repeats: false) { [weak self] _ in
             MainActor.assumeIsolated { self?.statusItem?.menu?.cancelTracking() }
         }
-        RunLoop.main.add(shoot, forMode: .common)
-        RunLoop.main.add(stop, forMode: .common)
+        for timer in [stage, shoot, stop] { RunLoop.main.add(timer, forMode: .common) }
         statusItem?.button?.performClick(nil)
         NSApp.terminate(nil)
     }

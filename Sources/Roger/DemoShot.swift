@@ -1,13 +1,17 @@
 import AppKit
 
+/// `--demo-shot bezel|menu --demo-out <png>` seeds a throwaway history,
+/// opens the bezel or the menu over a plain backdrop and saves what is on
+/// screen. The pixels are the app's own windows as the window server draws
+/// them, at the display's scale; nothing is painted by hand.
 enum DemoShot: String {
-    case bezelText = "bezel-text"
-    case bezelImage = "bezel-image"
+    case bezel
     case menu
 
     struct Invocation {
         let kind: DemoShot
         let output: URL
+        let photo: URL?
     }
 
     static func parse(_ arguments: [String]) -> Invocation? {
@@ -16,91 +20,97 @@ enum DemoShot: String {
               let kind = DemoShot(rawValue: arguments[shot + 1]),
               let out = arguments.firstIndex(of: "--demo-out"),
               arguments.indices.contains(out + 1) else { return nil }
-        return Invocation(kind: kind, output: URL(fileURLWithPath: arguments[out + 1]))
+        let photo = arguments.firstIndex(of: "--demo-photo").flatMap { index -> URL? in
+            arguments.indices.contains(index + 1) ? URL(fileURLWithPath: arguments[index + 1]) : nil
+        }
+        return Invocation(kind: kind, output: URL(fileURLWithPath: arguments[out + 1]), photo: photo)
     }
 
     var directory: URL {
         FileManager.default.temporaryDirectory.appendingPathComponent("roger-demo-\(rawValue)", isDirectory: true)
     }
 
-    var selection: Int {
-        switch self {
-        case .bezelText: return 2
-        case .bezelImage: return 3
-        case .menu: return 0
-        }
-    }
+    /// Both pictures are this wide, in points, so they line up in the README.
+    static let width = BezelMetrics.width + BezelMetrics.shadowMargin * 2
 
+    /// The bezel opens on the line of prose, between the photo and the file.
+    static let selection = 1
+
+    /// Recorded oldest first, so the strip reads photo, prose, file, command,
+    /// link from the newest end and the menu lists them in that order.
     @MainActor
-    func seed(into store: HistoryStore) {
-        let image = ProcessInfo.processInfo.environment["ROGER_DEMO_IMAGE"]
-            .flatMap { try? Data(contentsOf: URL(fileURLWithPath: $0)) }
-        store.recordText("Coffee with Sam at 11, then the design review.")
+    func seed(into store: HistoryStore, photo: URL?) {
+        store.recordText("https://github.com/GeorgeGally/roger/releases")
         store.recordText("git rebase --autosquash origin/main")
-        store.recordText("Meeting notes: the design review is at 11.")
-        if let image { store.recordPNG(image) }
-        store.recordText("Ship the bezel animation before Friday, then take the README screenshots.")
-        store.recordText("https://developer.apple.com/design/human-interface-guidelines/typography")
-        store.recordText("npm run build -- --watch")
+        let file = directory.appendingPathComponent("Launch checklist.pdf")
+        FileManager.default.createFile(atPath: file.path, contents: Data())
+        store.recordFiles([file])
+        store.recordText("Coffee with Sam at 11, then the design review.")
+        if let photo, let data = try? Data(contentsOf: photo) {
+            store.recordPNG(data)
+        }
     }
 }
 
 @MainActor
-enum DemoRender {
-    static let padding: CGFloat = 56
-    static let bezelRadius = BezelMetrics.cornerRadius
-    static let menuRadius: CGFloat = 11
+enum DemoCapture {
+    /// Room above and below the menu for its shadow.
+    static let menuMarginTop: CGFloat = 24
+    static let menuMarginBottom: CGFloat = 40
 
-    @discardableResult
-    static func write(_ view: NSView, radius: CGFloat, light: Bool, to url: URL) -> Bool {
-        let size = view.bounds.size
-        guard size.width > 1, size.height > 1,
-              let source = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return false }
-        view.cacheDisplay(in: view.bounds, to: source)
-        let image = NSImage(size: size)
-        image.addRepresentation(source)
-        return compose(image, scale: max(CGFloat(source.pixelsWide) / size.width, 1), radius: radius, light: light, to: url)
+    /// A flat window just under the panel or menu, so the glass has something
+    /// quiet to blur and the shadow has something to fall on.
+    static func backdrop(_ frame: NSRect) -> NSWindow {
+        let window = NSWindow(contentRect: frame, styleMask: .borderless, backing: .buffered, defer: false)
+        window.level = NSWindow.Level(rawValue: NSWindow.Level.popUpMenu.rawValue - 1)
+        window.isOpaque = true
+        window.hasShadow = false
+        window.ignoresMouseEvents = true
+        window.isReleasedWhenClosed = false
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
+        window.contentView = BackdropView(frame: NSRect(origin: .zero, size: frame.size))
+        window.orderFrontRegardless()
+        return window
     }
 
-    private static func compose(_ image: NSImage, scale: CGFloat, radius: CGFloat, light: Bool, to url: URL) -> Bool {
-        let size = image.size
-        let canvas = NSSize(width: size.width + padding * 2, height: size.height + padding * 2)
-        guard let output = NSBitmapImageRep(bitmapDataPlanes: nil,
-                                            pixelsWide: Int((canvas.width * scale).rounded()),
-                                            pixelsHigh: Int((canvas.height * scale).rounded()),
-                                            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
-                                            isPlanar: false, colorSpaceName: .deviceRGB,
-                                            bytesPerRow: 0, bitsPerPixel: 0),
-              let context = NSGraphicsContext(bitmapImageRep: output) else { return false }
+    /// Writes the given windows, back to front, as they appear inside
+    /// `region`, at the display's pixel density. Each window is read from the
+    /// window server on its own and the pictures are stacked, which is what
+    /// the server does on screen; an app may read its own windows this way
+    /// without screen-recording access.
+    @discardableResult
+    static func write(_ windows: [NSWindow], region: NSRect, to url: URL) -> Bool {
+        guard let primary = NSScreen.screens.first else { return false }
+        let bounds = CGRect(x: region.minX, y: primary.frame.maxY - region.maxY,
+                            width: region.width, height: region.height)
+        let layers = windows.compactMap {
+            CGWindowListCreateImage(bounds, .optionIncludingWindow, CGWindowID($0.windowNumber), [.bestResolution])
+        }
+        guard layers.count == windows.count, let first = layers.first,
+              let context = CGContext(data: nil, width: first.width, height: first.height, bitsPerComponent: 8,
+                                      bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
+            NSLog("Roger demo: could not read %d windows", windows.count)
+            return false
+        }
+        let frame = CGRect(x: 0, y: 0, width: first.width, height: first.height)
+        for layer in layers { context.draw(layer, in: frame) }
+        guard let image = context.makeImage() else { return false }
+        let bitmap = NSBitmapImageRep(cgImage: image)
+        bitmap.size = region.size
+        guard let data = bitmap.representation(using: .png, properties: [:]) else { return false }
+        do { try data.write(to: url, options: .atomic) } catch {
+            NSLog("Roger demo: %@", error.localizedDescription)
+            return false
+        }
+        return true
+    }
+}
 
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = context
-        let cg = context.cgContext
-        cg.scaleBy(x: scale, y: scale)
-
-        let full = NSRect(origin: .zero, size: canvas)
-        let backdrop = light
-            ? [NSColor(srgbRed: 0.94, green: 0.94, blue: 0.95, alpha: 1), NSColor(srgbRed: 0.87, green: 0.87, blue: 0.89, alpha: 1)]
-            : [NSColor(srgbRed: 0.11, green: 0.11, blue: 0.12, alpha: 1), NSColor(srgbRed: 0.045, green: 0.045, blue: 0.05, alpha: 1)]
-        NSGradient(colors: backdrop)?.draw(in: full, angle: -90)
-
-        let frame = full.insetBy(dx: padding, dy: padding)
-        let path = NSBezierPath(roundedRect: frame, xRadius: radius, yRadius: radius)
-
-        cg.saveGState()
-        cg.setShadow(offset: CGSize(width: 0, height: -12), blur: 30,
-                     color: NSColor.black.withAlphaComponent(0.6).cgColor)
-        (light ? NSColor(srgbRed: 0.92, green: 0.92, blue: 0.93, alpha: 1) : NSColor.black).setFill()
-        path.fill()
-        cg.restoreGState()
-
-        NSGraphicsContext.saveGraphicsState()
-        path.addClip()
-        image.draw(in: frame, from: .zero, operation: .sourceOver, fraction: 1)
-        NSGraphicsContext.restoreGraphicsState()
-        NSGraphicsContext.restoreGraphicsState()
-
-        guard let data = output.representation(using: .png, properties: [:]) else { return false }
-        return (try? data.write(to: url, options: .atomic)) != nil
+private final class BackdropView: NSView {
+    override func draw(_ dirtyRect: NSRect) {
+        let top = NSColor(srgbRed: 0.86, green: 0.86, blue: 0.875, alpha: 1)
+        let bottom = NSColor(srgbRed: 0.80, green: 0.80, blue: 0.815, alpha: 1)
+        NSGradient(starting: top, ending: bottom)?.draw(in: bounds, angle: -90)
     }
 }
