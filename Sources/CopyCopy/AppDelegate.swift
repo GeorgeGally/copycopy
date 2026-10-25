@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem?
     private var pasteTarget: NSRunningApplication?
     private var hotKeyError: String?
+    private var hasPromptedAccessibility = false
     private static let lastSelectedKey = "lastSelectedItemID"
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -30,7 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         preferences.onChange = { [weak self] in self?.hotKeyError = nil }
         let result = hotKey.register()
         NSLog("CopyCopy hotkey registration status: %d", result)
-        NSLog("CopyCopy accessibility trusted: %d", AXIsProcessTrusted() ? 1 : 0)
+        NSLog("CopyCopy accessibility trusted: %d", accessibilityTrusted(prompt: false) ? 1 : 0)
         if result != noErr {
             hotKeyError = "Shortcut unavailable. Quit another app using \(hotKey.shortcut.title) and reopen CopyCopy."
         }
@@ -65,6 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         menu.addItem(.separator())
         add("Clear history", action: #selector(clearHistory), to: menu).isEnabled = !store.items.isEmpty
+        add("Allow Pasting in Accessibility…", action: #selector(openAccessibilitySettings), to: menu)
         add("Preferences…", action: #selector(openPreferences), to: menu)
         add("Quit CopyCopy", action: #selector(quit), to: menu)
     }
@@ -89,6 +91,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func showBezel() {
         if !bezel.isOpen { pasteTarget = NSWorkspace.shared.frontmostApplication }
         watcher.poll()
+        bezel.pasteAvailable = accessibilityTrusted(prompt: false)
         bezel.show(items: store.items, selectedID: UserDefaults.standard.string(forKey: Self.lastSelectedKey), frontApp: pasteTarget)
     }
 
@@ -102,31 +105,65 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         DispatchQueue.main.async { [weak self] in self?.paste(item) }
     }
 
+    /// Return in the bezel or a menu row. Copies first; pastes only when macOS
+    /// lets this app post keystrokes and the target app is back in front.
     private func paste(_ item: HistoryItem) {
         UserDefaults.standard.set(item.id, forKey: Self.lastSelectedKey)
+        guard accessibilityTrusted(prompt: true) else {
+            _ = copy(item)
+            NSLog("CopyCopy paste: copied only; Accessibility is not granted to this build")
+            return
+        }
+        guard let target = pasteTarget, !target.isTerminated else {
+            _ = copy(item)
+            NSLog("CopyCopy paste: copied only; no target app")
+            return
+        }
+        if !target.isActive { target.activate() }
+        awaitFrontmost(target, waited: 0) { [weak self] in
+            guard let self, self.copy(item) else { return }
+            self.sendPaste(to: target, attemptsRemaining: 30)
+        }
+    }
+
+    private func copy(_ item: HistoryItem) -> Bool {
         do {
             try watcher.restore(item)
+            return true
         } catch {
             let alert = NSAlert()
             alert.messageText = "Could not copy this item"
             alert.informativeText = error.localizedDescription
             alert.runModal()
-            return
+            return false
         }
-        guard AXIsProcessTrusted() else {
-            NSLog("CopyCopy paste: on the clipboard only; Accessibility is not granted to this build")
-            offerAccessibilityOnce()
-            return
+    }
+
+    /// The system Accessibility prompt is shown at most once per launch.
+    private func accessibilityTrusted(prompt: Bool) -> Bool {
+        let shouldPrompt = prompt && !hasPromptedAccessibility
+        if shouldPrompt { hasPromptedAccessibility = true }
+        // The key is kAXTrustedCheckOptionPrompt, spelled out because the global is not Sendable.
+        return AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": shouldPrompt] as CFDictionary)
+    }
+
+    /// Waits for the target to be frontmost again, at least 60 ms and at most 400 ms.
+    private func awaitFrontmost(_ target: NSRunningApplication, waited: TimeInterval, then: @escaping @MainActor () -> Void) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) { [weak self] in
+            guard let self else { return }
+            let waited = waited + 0.02
+            let frontmost = NSWorkspace.shared.frontmostApplication?.processIdentifier == target.processIdentifier
+            if (frontmost && waited >= 0.06) || waited >= 0.4 {
+                if !frontmost { NSLog("CopyCopy paste: %@ did not come to the front in 400 ms", target.localizedName ?? "target") }
+                then()
+            } else {
+                self.awaitFrontmost(target, waited: waited, then: then)
+            }
         }
-        guard let target = pasteTarget, !target.isTerminated else {
-            NSLog("CopyCopy paste: no target app")
-            return
-        }
-        // Let the pasteboard settle before the target reads it.
-        sendPaste(to: target, attemptsRemaining: 30)
     }
 
     private func sendPaste(to target: NSRunningApplication, attemptsRemaining: Int) {
+        // Let the pasteboard settle before the target reads it.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
             guard let self, !target.isTerminated else { return }
             // Do not send a modified paste while the invoking hotkey is still held.
@@ -153,20 +190,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    private func offerAccessibilityOnce() {
-        let defaults = UserDefaults.standard
-        guard !defaults.bool(forKey: "hasOfferedAccessibility") else { return }
-        defaults.set(true, forKey: "hasOfferedAccessibility")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-            let alert = NSAlert()
-            alert.messageText = "Copied to clipboard"
-            alert.informativeText = "Allow CopyCopy in Accessibility to paste directly into other apps. You can also paste this item yourself with Command-V."
-            alert.addButton(withTitle: "Open Accessibility")
-            alert.addButton(withTitle: "Later")
-            if alert.runModal() == .alertFirstButtonReturn,
-               let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                NSWorkspace.shared.open(url)
-            }
+    @objc private func openAccessibilitySettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
         }
     }
 

@@ -72,7 +72,10 @@ final class ClipboardWatcher: NSObject {
                     pasteboard.setData(tiff, forType: .tiff)
                 }
             } else { succeeded = false }
-        case .files(let urls): succeeded = pasteboard.writeObjects(urls.map { $0 as NSURL })
+        case .files(let urls):
+            // File URLs for Finder and file fields, plus the paths as text.
+            succeeded = pasteboard.writeObjects(urls.map { $0 as NSURL })
+            pasteboard.setString(urls.map(\.path).joined(separator: "\n"), forType: .string)
         }
         lastChange = pasteboard.changeCount
         guard succeeded else { throw ClipboardError.writeFailed }

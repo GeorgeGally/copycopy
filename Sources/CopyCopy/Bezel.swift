@@ -79,6 +79,8 @@ private final class BezelRootView: NSView {
 final class BezelState: ObservableObject {
     @Published var items: [HistoryItem] = []
     @Published var selection = 0
+    /// Replaces the counter for a moment when Return could only copy.
+    @Published var notice: String?
     private var wrapped = false
 
     var selected: HistoryItem? { items.indices.contains(selection) ? items[selection] : nil }
@@ -135,6 +137,9 @@ final class BezelController: NSObject, NSWindowDelegate {
     private var transition = 0
     private(set) var isOpen = false
     var onSelect: ((HistoryItem) -> Void)?
+    /// False while macOS has not granted Accessibility: Return then copies
+    /// and says so instead of pretending to paste.
+    var pasteAvailable = true
 
     init(store: HistoryStore) {
         let margin = BezelMetrics.shadowMargin
@@ -206,6 +211,7 @@ final class BezelController: NSObject, NSWindowDelegate {
         }
         state.items = items
         state.selection = items.firstIndex { $0.id == selectedID } ?? 0
+        state.notice = nil
         transition += 1
         isOpen = true
         let screen = activeScreen(frontApp: frontApp)
@@ -251,6 +257,17 @@ final class BezelController: NSObject, NSWindowDelegate {
     /// with the target app before the paste keystroke is posted.
     private func select() {
         guard let item = state.selected else { return }
+        guard pasteAvailable else {
+            state.notice = "Copied. Pasting needs Accessibility access."
+            onSelect?(item)
+            transition += 1
+            let currentTransition = transition
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { [weak self] in
+                guard let self, self.transition == currentTransition else { return }
+                self.dismiss()
+            }
+            return
+        }
         isOpen = false
         transition += 1
         panel.orderOut(nil)
@@ -327,7 +344,7 @@ private struct BezelView: View {
                     .onAppear { scrolled = state.selection }
                     .frame(height: BezelMetrics.itemSize.height)
                 }
-                Text(state.items.isEmpty ? "0 of 0" : "\(state.selection + 1) of \(state.items.count)")
+                Text(state.notice ?? (state.items.isEmpty ? "0 of 0" : "\(state.selection + 1) of \(state.items.count)"))
                     .font(.system(size: 12, weight: .medium))
                     .monospacedDigit()
                     .foregroundStyle(.white.opacity(0.5))

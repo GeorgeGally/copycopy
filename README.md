@@ -32,11 +32,12 @@ in the menu bar and does not appear in the Dock.
   field and press a combination. Escape cancels. If another app owns the
   combination, the old shortcut is kept and a message appears.
 
-The first paste offers Accessibility access if macOS has not granted it. The
-item is already on the clipboard, so Command + V works without that permission.
-The offer appears once. To grant access later, open System Settings > Privacy &
-Security > Accessibility and add CopyCopy. A freshly rebuilt ad-hoc signed app
-may need to be added again. If another clipboard app owns the shortcut, quit it
+Pasting needs Accessibility access. The first Return asks for it with the
+system dialog; until it is granted the bezel says it copied and cannot paste
+yet, and the item is on the clipboard for Command + V. The menu-bar item Allow
+Pasting in Accessibility opens System Settings > Privacy & Security >
+Accessibility at any time. The app is ad-hoc signed, so a rebuilt app must be
+added there again. If another clipboard app owns the shortcut, quit it
 and relaunch CopyCopy, or record a different shortcut in Preferences.
 
 ## Storage
