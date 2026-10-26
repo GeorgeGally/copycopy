@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Roger · shot lab</title>
+<style>
+  :root{
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    --stage-w: 800px;
+    --stage-h: 400px;
+  }
+  *{ box-sizing: border-box; }
+  html, body{ margin:0; }
+  body{
+    background:#FBFBFA;
+    color:#111114;
+    font: 400 14px/1.5 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap{ width:800px; margin:0 auto; padding:56px 0 84px; }
+  .mast{ display:flex; align-items:baseline; gap:14px; padding:0 0 12px; border-bottom:1px solid #E2E0DB; }
+  .mast h1{ font: 500 15px/1 var(--mono); letter-spacing:.02em; margin:0; }
+  .mast p{ margin:0; color:#6E6B64; font-size:13px; }
+  .mast .spacer{ margin-left:auto; color:#8C8880; font: 400 12px/1 var(--mono); }
+
+  .entry{ padding:56px 0 0; }
+  .tag{ font: 500 13px/1 var(--mono); letter-spacing:.04em; margin:0 0 6px; }
+  .idea{ margin:0 0 18px; color:#5F5C55; font-size:13.5px; max-width:640px; }
+  .frame{ border:1px solid #E2E0DB; border-radius:3px; overflow:hidden; line-height:0; }
+
+  .stage{
+    position:relative;
+    width:var(--stage-w); height:var(--stage-h);
+    overflow:hidden;
+    isolation:isolate;
+  }
+  .stage img{ display:block; -webkit-user-drag:none; user-select:none; }
+  .pop{
+    position:absolute;
+    width:var(--pw);
+    height:auto;
+    border-radius: calc(var(--pw) * var(--rf));
+    clip-path: inset(0 round calc(var(--pw) * var(--rf)));
+  }
+  .s1 .pop, .s2 .pop, .s3 .pop, .s4 .pop, .s5 .pop{ --rf: .0310; }
+
+  .s1{ background: radial-gradient(118% 120% at 18% 0%, #FDFCF8 0%, #F3EFE6 54%, #E9E3D6 100%); }
+  .s1 .pop{
+    --pw: 700px; left:50px; top:82px;
+    box-shadow: 0 0 0 1px rgba(56,44,26,.08),
+                0 34px 64px -18px rgba(56,44,26,.50),
+                0 10px 22px -8px rgba(56,44,26,.28),
+                0 1px 2px rgba(56,44,26,.18);
+  }
+  .s1 .mark{ position:absolute; right:40px; bottom:28px; width:26px; opacity:.62; }
+
+  .s2{ background:#0B0B0C; }
+  .s2 .work{
+    position:absolute; left:-11px; top:-11px; width:822px; height:422px;
+    object-fit:cover;
+    filter: brightness(.21) saturate(.3) contrast(1.08) blur(1.1px);
+  }
+  .s2 .veil{
+    position:absolute; inset:0;
+    background: radial-gradient(70% 78% at 50% 50%, rgba(0,0,0,.10) 0%, rgba(0,0,0,.80) 100%);
+  }
+  .s2 .pop{
+    --pw: 720px; left:40px; top:81px;
+    box-shadow: 0 40px 74px -10px rgba(0,0,0,.92),
+                0 10px 24px rgba(0,0,0,.7),
+                0 0 0 1px rgba(255,255,255,.08);
+  }
+
+  .s3{ background: radial-gradient(112% 112% at 28% 8%, #F5F2EC 0%, #E5E0D6 68%, #D8D2C5 100%); }
+  .s3 .menu{
+    position:absolute; right:95px; top:0; width:320px;
+    border-radius: calc(320px * .026);
+    clip-path: inset(0 round calc(320px * .026));
+    filter: saturate(.78) brightness(.94);
+    opacity:.86;
+    box-shadow: 0 26px 52px -20px rgba(50,40,24,.46), 0 6px 14px -6px rgba(50,40,24,.22);
+  }
+  .s3 .pop{
+    --pw: 610px; left:95px; top:152px;
+    box-shadow: 0 44px 74px -22px rgba(50,40,24,.50),
+                0 12px 24px -12px rgba(50,40,24,.28);
+  }
+
+  .s4{ background: radial-gradient(120% 104% at 50% -12%, #26262E 0%, #141419 40%, #08080A 100%); }
+  .s4 .glow{
+    position:absolute; left:50%; top:50%; width:940px; height:430px;
+    transform: translate(-50%,-50%);
+    background: radial-gradient(closest-side, rgba(150,176,255,.30), rgba(150,176,255,.08) 54%, rgba(150,176,255,0) 80%);
+    filter: blur(20px);
+  }
+  .s4 .pop{
+    --pw: 720px; left:40px; top:81px;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.24),
+                0 0 58px -6px rgba(150,175,255,.24),
+                0 30px 56px -10px rgba(0,0,0,.92),
+                0 8px 18px -2px rgba(0,0,0,.8);
+  }
+
+  .s5{ background: radial-gradient(124% 124% at 50% -6%, #FCFBF8 0%, #F4F1E9 100%); }
+  .s5 .lead{
+    position:absolute; left:0; right:0; top:91px;
+    text-align:center;
+    font: 500 26px/1 var(--mono);
+    letter-spacing:.005em;
+    color:#16151A;
+  }
+  .s5 .pop{
+    --pw: 480px; left:160px; top:149px;
+    box-shadow: 0 0 0 1px rgba(56,44,26,.07),
+                0 26px 48px -14px rgba(56,44,26,.44),
+                0 8px 18px -6px rgba(56,44,26,.26);
+  }
+
+  .theme{ margin-top:72px; border-top:1px solid #E2E0DB; padding-top:34px; }
+  .theme h2{ font: 500 13px/1 var(--mono); letter-spacing:.04em; margin:0 0 4px; }
+  .theme p{ margin:0 0 20px; color:#5F5C55; font-size:13.5px; max-width:640px; }
+  .row{ display:flex; gap:10px; align-items:flex-end; padding:10px; border-radius:3px; margin-bottom:10px; }
+  .row.light{ background:#FFFFFF; border:1px solid #E2E0DB; }
+  .row.dark{ background:#0D1117; }
+  .row .cell{ width:148px; height:74px; overflow:hidden; position:relative; border-radius:2px; }
+  .row .cell .stage{ transform: scale(.185); transform-origin: 0 0; }
+
+  html[data-shot] body{ background:#000; }
+  html[data-shot] .wrap{ width:auto; margin:0; padding:0; }
+  html[data-shot] .mast, html[data-shot] .tag, html[data-shot] .idea,
+  html[data-shot] .theme, html[data-shot] .entry:not(.on){ display:none; }
+  html[data-shot] .entry.on{ padding:0; }
+  html[data-shot] .frame{ border:0; border-radius:0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="mast">
+    <h1>Roger · shot lab</h1>
+    <p>One capture, five frames.</p>
+    <span class="spacer">800 × 400 · exported 1600 × 800</span>
+  </header>
+
+  <section class="entry" id="v1">
+    <p class="tag">V1 · Studio.</p>
+    <p class="idea">The popup alone on warm paper, the bowtie set small in the corner: a press kit rather than a screenshot.</p>
+    <div class="frame"><div class="stage s1">
+      <img class="pop" src="assets/popup.png" alt="Roger's bezel open on a text item">
+      <img class="mark" src="assets/mark.png" alt="">
+    </div></div>
+  </section>
+
+  <section class="entry" id="v2">
+    <p class="tag">V2 · Over the work.</p>
+    <p class="idea">Floating over a darkened page of real text, so it reads as something you just used instead of something posed.</p>
+    <div class="frame"><div class="stage s2">
+      <img class="work" src="assets/work.png" alt="">
+      <div class="veil"></div>
+      <img class="pop" src="assets/popup.png" alt="Roger's bezel over a page of text">
+    </div></div>
+  </section>
+
+  <section class="entry" id="v3">
+    <p class="tag">V3 · Depth.</p>
+    <p class="idea">The history menu sits behind and dimmed, so the bezel is the thing you landed on out of a stack.</p>
+    <div class="frame"><div class="stage s3">
+      <img class="menu" src="assets/menu.png" alt="Roger's menu-bar menu, dimmed behind the bezel">
+      <img class="pop" src="assets/popup.png" alt="Roger's bezel in front of the menu">
+    </div></div>
+  </section>
+
+  <section class="entry" id="v4">
+    <p class="tag">V4 · Dark stage.</p>
+    <p class="idea">A charcoal field with a cold halo behind the card, so the glass gets a rim and the image carries a hero section.</p>
+    <div class="frame"><div class="stage s4">
+      <div class="glow"></div>
+      <img class="pop" src="assets/popup.png" alt="Roger's bezel lit on charcoal">
+    </div></div>
+  </section>
+
+  <section class="entry" id="v5">
+    <p class="tag">V5 · Type-led.</p>
+    <p class="idea">One line of the app's own words in the app's own mono, and the popup kept small underneath it.</p>
+    <div class="frame"><div class="stage s5">
+      <div class="lead">Open history ⌃⌥⌘V</div>
+      <img class="pop" src="assets/popup.png" alt="Roger's bezel under the app's shortcut line">
+    </div></div>
+  </section>
+
+  <section class="theme">
+    <h2>Theme check</h2>
+    <p>Every frame at README scale, on GitHub's light page and its dark one.</p>
+    <div class="row light" id="row-light"></div>
+    <div class="row dark" id="row-dark"></div>
+  </section>
+
+</div>
+
+<script>
+  const shot = new URLSearchParams(location.search).get('shot');
+  if (shot) {
+    document.documentElement.dataset.shot = shot;
+    document.getElementById(shot)?.classList.add('on');
+  } else {
+    for (const id of ['row-light', 'row-dark']) {
+      const row = document.getElementById(id);
+      for (const entry of document.querySelectorAll('.entry')) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        const clone = entry.querySelector('.stage').cloneNode(true);
+        cell.append(clone);
+        row.append(cell);
+        cell.querySelector('.stage').style.cssText = 'transform:scale(.185);transform-origin:0 0';
+        cell.querySelectorAll('img').forEach(i => i.removeAttribute('alt'));
+      }
+    }
+  }
+</script>
+</body>
+</html>
