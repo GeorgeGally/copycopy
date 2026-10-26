@@ -172,13 +172,12 @@ struct HistoryTests {
         state.items = (0..<3).map { HistoryItem(id: "\($0)", content: .text("\($0)"), copiedAt: Date()) }
         state.step(-1)
         #expect(state.selection == 2)
-        #expect(state.consumeWrap())
+        #expect(state.direction == -1)
         state.step(1)
         #expect(state.selection == 0)
-        #expect(state.consumeWrap())
+        #expect(state.direction == 1)
         state.step(1)
         #expect(state.selected?.content == .text("1"))
-        #expect(!state.consumeWrap())
     }
 
     @Test func failedRegistrationKeepsTheOldShortcut() throws {
@@ -248,12 +247,91 @@ struct HistoryTests {
         #expect(bezel.isOpen)
         bezel.state.step(-1)
         #expect(bezel.state.selection == 2)
-        #expect(bezel.state.consumeWrap())
+        #expect(bezel.state.direction == -1)
         bezel.state.step(1)
         #expect(bezel.state.selection == 0)
-        #expect(bezel.state.consumeWrap())
+        #expect(bezel.state.direction == 1)
         bezel.dismiss()
         #expect(!bezel.isOpen)
+    }
+
+    /// Nothing copied since the last open: reopen on the item that was on
+    /// screen, scrolled into the strip, and wrap from there.
+    @Test func reopenStaysOnTheItemItWasClosedOn() throws {
+        let path = directory()
+        defer { try? FileManager.default.removeItem(at: path) }
+        let store = HistoryStore(directory: path)
+        for text in ["A", "B", "C"] { store.recordText(text) }
+        var memory = SelectionMemory()
+        memory.remember(store.items.first, in: store.items)
+        let bezel = BezelController(store: store)
+        bezel.onClose = { memory.remember($0, in: store.items) }
+
+        bezel.show(items: store.items, selectedID: memory.selectedID(in: store.items), frontApp: nil)
+        #expect(bezel.state.selection == 0)
+        bezel.state.step(1)
+        #expect(bezel.state.selected?.content == .text("B"))
+        bezel.dismiss()
+        #expect(memory.itemID == store.items[1].id)
+
+        bezel.show(items: store.items, selectedID: memory.selectedID(in: store.items), frontApp: nil)
+        #expect(bezel.state.selection == 1)
+        #expect(bezel.state.selected?.content == .text("B"))
+        bezel.state.step(1)
+        #expect(bezel.state.selected?.content == .text("A"))
+        bezel.state.step(1)
+        #expect(bezel.state.selection == 0)
+        #expect(bezel.state.selected?.content == .text("C"))
+        bezel.dismiss()
+
+        var gone = memory
+        gone.itemID = "no such item"
+        #expect(gone.selectedID(in: store.items) == store.items.first?.id)
+    }
+
+    /// A copy since the last open is what the captain wants next: the bezel
+    /// opens at the top for it once, and does not stay glued to the top.
+    @Test func aNewCopyIsOpenedOnAtTheTopOnce() throws {
+        let path = directory()
+        defer { try? FileManager.default.removeItem(at: path) }
+        let store = HistoryStore(directory: path)
+        for text in ["A", "B", "C"] { store.recordText(text) }
+        var memory = SelectionMemory()
+        memory.remember(store.items.first, in: store.items)
+        store.recordText("D")
+        let newest = try #require(store.items.first)
+        #expect(newest.content == .text("D"))
+        #expect(memory.selectedID(in: store.items) == newest.id)
+
+        let bezel = BezelController(store: store)
+        bezel.onClose = { memory.remember($0, in: store.items) }
+        bezel.show(items: store.items, selectedID: memory.selectedID(in: store.items), frontApp: nil)
+        #expect(bezel.state.selection == 0)
+        #expect(bezel.state.selected?.content == .text("D"))
+        bezel.dismiss()
+        bezel.show(items: store.items, selectedID: memory.selectedID(in: store.items), frontApp: nil)
+        #expect(bezel.state.selected?.content == .text("D"))
+        bezel.dismiss()
+
+        let c = try #require(store.items.first { $0.content == .text("C") })
+        memory.remember(c, in: store.items)
+        #expect(memory.selectedID(in: store.items) == c.id)
+    }
+
+    /// The item that was open before a new copy keeps its place; it is just
+    /// no longer the one selected.
+    @Test func aNewCopyLeavesThePreviouslyOpenItemWhereItWas() throws {
+        let path = directory()
+        defer { try? FileManager.default.removeItem(at: path) }
+        let store = HistoryStore(directory: path)
+        for text in ["A", "B", "C"] { store.recordText(text) }
+        var memory = SelectionMemory()
+        let b = try #require(store.items.first { $0.content == .text("B") })
+        memory.remember(b, in: store.items)
+        store.recordText("D")
+        #expect(store.items.map(\.content) == [.text("D"), .text("C"), .text("B"), .text("A")])
+        #expect(store.items.first { $0.id == memory.itemID }?.content == .text("B"))
+        #expect(memory.selectedID(in: store.items) == store.items.first?.id)
     }
 
     @Test func shortcutRoundTripsThroughUserDefaults() throws {

@@ -141,6 +141,8 @@ package final class BezelController: NSObject, NSWindowDelegate {
     private var transition = 0
     private(set) var isOpen = false
     var onSelect: ((HistoryItem) -> Void)?
+    /// The item on screen when the panel closes, so the next open can start there.
+    var onClose: ((HistoryItem?) -> Void)?
     /// False while macOS has not granted Accessibility: Return then copies
     /// and says so instead of pretending to paste.
     var pasteAvailable = true
@@ -241,6 +243,7 @@ package final class BezelController: NSObject, NSWindowDelegate {
 
     func dismiss() {
         guard isOpen else { return }
+        onClose?(state.selected)
         isOpen = false
         transition += 1
         let currentTransition = transition

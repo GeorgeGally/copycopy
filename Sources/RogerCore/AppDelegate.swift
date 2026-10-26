@@ -13,7 +13,6 @@ package final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate
     private var pasteTarget: NSRunningApplication?
     private var hotKeyError: String?
     private var hasPromptedAccessibility = false
-    private static let lastSelectedKey = "lastSelectedItemID"
 
     package init(store: HistoryStore = HistoryStore()) {
         self.store = store
@@ -32,6 +31,7 @@ package final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate
         status.menu = menu
         statusItem = status
         bezel.onSelect = { [weak self] in self?.paste($0) }
+        bezel.onClose = { [weak self] in self?.rememberSelection($0) }
         hotKey.onPress = { [weak self] in self?.showBezel() }
         preferences.onChange = { [weak self] in self?.hotKeyError = nil }
         let result = hotKey.register()
@@ -122,7 +122,21 @@ package final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate
         if !bezel.isOpen { pasteTarget = NSWorkspace.shared.frontmostApplication }
         watcher.poll()
         bezel.pasteAvailable = accessibilityTrusted(prompt: false)
-        bezel.show(items: store.items, selectedID: UserDefaults.standard.string(forKey: Self.lastSelectedKey), frontApp: pasteTarget)
+        bezel.show(items: store.items, selectedID: selectionOpenID, frontApp: pasteTarget)
+    }
+
+    /// What the bezel was last left on, and what was newest then. A capture
+    /// newer than that head opens at the top once; otherwise the bezel reopens
+    /// on the remembered item, or on the newest when that item has gone.
+    private var selectionOpenID: String? {
+        SelectionMemory.load().selectedID(in: store.items)
+    }
+
+    private func rememberSelection(_ item: HistoryItem?) {
+        guard let item else { return }
+        var memory = SelectionMemory.load()
+        memory.remember(item, in: store.items)
+        memory.save()
     }
 
     @objc private func openFromMenu() {
@@ -138,7 +152,7 @@ package final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate
     /// Return in the bezel or a menu row. Copies first; pastes only when macOS
     /// lets this app post keystrokes and the target app is back in front.
     private func paste(_ item: HistoryItem) {
-        UserDefaults.standard.set(item.id, forKey: Self.lastSelectedKey)
+        rememberSelection(item)
         let front = NSWorkspace.shared.frontmostApplication
         let trusted = accessibilityTrusted(prompt: true)
         PasteLog.write("return item=\(item.label.prefix(40).debugDescription) trusted=\(trusted) canPostEvents=\(CGPreflightPostEventAccess()) frontmost=\(Self.describe(front)) target=\(Self.describe(pasteTarget))")
