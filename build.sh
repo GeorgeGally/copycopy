@@ -30,7 +30,7 @@ PLIST
 # macOS binds the Accessibility grant to the signature, so a stable identity
 # keeps the grant across builds. Without one the app is ad-hoc signed and the
 # grant has to be given again after every rebuild.
-ROGER_IDENTITY="${ROGER_SIGN_IDENTITY:-CopyOver Local Signing}"
+ROGER_IDENTITY="${ROGER_SIGN_IDENTITY:-Roger Local Signing}"
 if security find-identity -v -p codesigning 2>/dev/null | grep -qF "\"$ROGER_IDENTITY\""; then
     codesign --force --deep -s "$ROGER_IDENTITY" "$ROGER_APP"
     printf 'Signed with %s\n' "$ROGER_IDENTITY"
