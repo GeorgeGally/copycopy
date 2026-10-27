@@ -7,7 +7,8 @@ ROGER_BIN="$("$ROGER_ROOT/scripts/swift-package.sh" build -c release --product R
 ROGER_APP="$ROGER_ROOT/dist/Roger.app"
 mkdir -p "$ROGER_APP/Contents/MacOS" "$ROGER_APP/Contents/Resources"
 cp "$ROGER_BIN/Roger" "$ROGER_APP/Contents/MacOS/Roger"
-# The icons are drawn by scripts/make-icon.swift; rerun it after changing the mark.
+# The icons are built by scripts/make-icon.py from Resources/AppIcon-source.png.
+# Rerun it after changing the mark. AppKit tints MenuBarIcon as a template.
 cp "$ROGER_ROOT/Resources/AppIcon.icns" "$ROGER_ROOT/Resources/MenuBarIcon.png" "$ROGER_ROOT/Resources/MenuBarIcon@2x.png" "$ROGER_APP/Contents/Resources/"
 cat > "$ROGER_APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>

@@ -1,0 +1,194 @@
+/* README shots. The bezel metrics match lab/bezel-2 and Bezel.swift.
+   One CSS pixel is one point; Chrome shoots at 2x. */
+
+:root {
+  --paper: #E4DFD6;
+  --plate: rgba(230, 211, 176, 0.25);
+  --sans: Inter, -apple-system, "Helvetica Neue", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--paper);
+  overflow: hidden;
+}
+
+html[data-shot="bezel"],
+html[data-shot="bezel"] body { width: 800px; height: 400px; }
+
+html[data-shot="menu"],
+html[data-shot="menu"] body { width: 800px; height: 460px; }
+
+.stage { display: none; position: relative; width: 100%; height: 100%; }
+html[data-shot="bezel"] .stage.shot-bezel,
+html[data-shot="menu"] .stage.menu { display: block; }
+
+/* Same placement as the Still hero. The stage must not carry the
+   bezel class: that class owns the panel shadow, and on an 800×400
+   stage it darkens the rounded corners of the picture. */
+.stage.shot-bezel { overflow: hidden; }
+.stage.shot-bezel .bezel { position: absolute; left: 40px; top: 74px; }
+.ring {
+  position: absolute;
+  left: 238px;
+  top: 10px;
+  width: 244px;
+  height: 192px;
+  box-sizing: border-box;
+  border-radius: 14px;
+  border: 1px solid var(--plate);
+  pointer-events: none;
+}
+.item.image img { object-position: center; }
+
+/* Menu and the Preferences window, the two AppKit surfaces. */
+.stage.menu .panel {
+  position: absolute;
+  left: 48px;
+  top: 52px;
+  width: 300px;
+  padding: 5px 0;
+  border-radius: 10px;
+  background: rgba(246, 246, 246, 0.96);
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.22),
+    0 2px 6px rgba(0, 0, 0, 0.10);
+  font: 13px/1 var(--sans);
+  color: #1d1d1f;
+  -webkit-font-smoothing: antialiased;
+}
+
+.stage.menu .row {
+  height: 22px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  white-space: nowrap;
+  letter-spacing: -0.008em;
+}
+
+.stage.menu .row.image {
+  height: 56px;
+  padding: 0;
+}
+
+.stage.menu .row.image img {
+  width: 48px;
+  height: 48px;
+  margin-left: 14px;
+  border-radius: 6px;
+  object-fit: cover;
+  display: block;
+}
+
+.stage.menu .sep {
+  height: 1px;
+  margin: 5px 14px;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.prefs {
+  position: absolute;
+  left: 412px;
+  top: 96px;
+  width: 300px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f3f3f3;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  box-shadow:
+    0 22px 44px rgba(0, 0, 0, 0.24),
+    0 2px 6px rgba(0, 0, 0, 0.12);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.prefs .titlebar {
+  position: relative;
+  height: 28px;
+  background: linear-gradient(#f7f7f7, #ececec);
+  border-bottom: 1px solid #d2d2d2;
+}
+
+.prefs .close {
+  position: absolute;
+  left: 10px;
+  top: 8px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ff5f57;
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.18);
+}
+
+.prefs h2 {
+  margin: 0;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 500 13px/1 var(--sans);
+  color: #1d1d1f;
+  letter-spacing: -0.01em;
+}
+
+.prefs .body { position: relative; height: 176px; }
+
+.prefs .field {
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  width: 260px;
+  height: 40px;
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.045);
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 500 15px/1 var(--mono);
+  letter-spacing: 0;
+  color: #1d1d1f;
+}
+
+.prefs .caption,
+.prefs .kept {
+  position: absolute;
+  left: 20px;
+  width: 260px;
+  height: 16px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 11px/16px var(--sans);
+  color: rgba(0, 0, 0, 0.48);
+}
+
+.prefs .caption { top: 66px; }
+.prefs .kept { top: 90px; }
+
+.prefs .popup {
+  position: absolute;
+  left: 20px;
+  top: 110px;
+  width: 260px;
+  height: 26px;
+  border-radius: 5px;
+  border: 1px solid #b6b6b6;
+  background: linear-gradient(#ffffff, #f0f0f0);
+  box-shadow: inset 0 1px 0 #fff, 0 1px 0 rgba(0, 0, 0, 0.04);
+  display: flex;
+  align-items: center;
+  padding: 0 8px 0 10px;
+  font: 13px/1 var(--sans);
+  color: #1d1d1f;
+}
+
+.prefs .popup span { margin-right: auto; }
+
+.prefs .popup svg { display: block; }
