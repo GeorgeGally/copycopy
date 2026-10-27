@@ -76,7 +76,7 @@ George picked **Still**.
 
 The selected item was only larger and brighter. At thumbnail size that is just "the bright card", and Return pastes whatever is bright. It needs a mark. Three treatments on Still only, judged from the PNGs, including each hero reduced to 480px wide. No glow, no shadow, no thick box.
 
-The ring is a real rectangle, not a side rule. On the 1600px hero it spans 488×384 device pixels around the 472×368 item: a 1px stroke (two solid pixels of `#E6D3B0`) and 3px of glass on every side, top and bottom included. At @1x that stroke is one solid pixel of the same plate, not a half-covered fringe.
+The ring is a real rectangle, not a side rule. On the 1600px hero it spans 488×384 device pixels around the 472×368 item: a 1px stroke of `#E6D3B0` at half strength and 3px of glass on every side, top and bottom included. At @1x that stroke is one solid pixel of the same plate, not a half-covered fringe.
 
 ### (a) Warm plate — 9
 

@@ -25,6 +25,8 @@ package enum BezelMetrics {
     static let selectionGap: CGFloat = 3
     static let selectionStroke: CGFloat = 1
     static let selectionStrokeStrong: CGFloat = 2
+    /// Half strength. Increase Contrast ignores this and paints the line solid.
+    static let selectionOpacity = 0.5
     /// How fast the ring leaves one item and settles on the next.
     static let selectionMove = Animation.easeOut(duration: 0.12)
 }
@@ -526,8 +528,9 @@ private struct SelectionRing: View {
     private var strong: Bool { contrast == .increased }
     private var stroke: CGFloat { strong ? BezelMetrics.selectionStrokeStrong : BezelMetrics.selectionStroke }
     private var color: Color {
-        if scheme == .light { return strong ? .black : Self.ink }
-        return strong ? .white : Self.plate
+        if strong { return scheme == .light ? .black : .white }
+        let base = scheme == .light ? Self.ink : Self.plate
+        return base.opacity(BezelMetrics.selectionOpacity)
     }
 
     var body: some View {
