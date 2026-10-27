@@ -20,6 +20,11 @@ package enum BezelMetrics {
     /// Transparent margin around the surface that holds its shadow.
     package static let shadowMargin: CGFloat = 64
     static let selectionSpring = Animation.spring(duration: 0.26, bounce: 0)
+    /// Clear space between the item and the selection ring, then the stroke.
+    static let selectionGap: CGFloat = 3
+    static let selectionStroke: CGFloat = 1.5
+    /// How fast the ring leaves one item and settles on the next.
+    static let selectionMove = Animation.easeOut(duration: 0.12)
 }
 
 /// The window's content: one rounded surface with a soft layered shadow
@@ -309,6 +314,8 @@ private struct BezelView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var scrolled: Int?
     @State private var position = 0
+    /// Horizontal offset of the selection ring while it eases onto the next item.
+    @State private var ringOffset: CGFloat = 0
 
     var body: some View {
         GeometryReader { geometry in
@@ -344,7 +351,13 @@ private struct BezelView: View {
                         }
                     )
                     .onChange(of: state.moves) { _, _ in
-                        if state.direction == 0 { center() } else { advance() }
+                        if state.direction == 0 {
+                            ringOffset = 0
+                            center()
+                        } else {
+                            moveRing()
+                            advance()
+                        }
                     }
                     .onAppear { center() }
                     .frame(height: BezelMetrics.itemSize.height)
@@ -357,10 +370,37 @@ private struct BezelView: View {
                     .contentTransition(.numericText())
                     .accessibilityLabel("Item \(state.selection + 1) of \(state.items.count)")
             }
+            .overlay(alignment: .top) {
+                if !state.items.isEmpty {
+                    SelectionRing(offset: ringOffset)
+                        .frame(height: BezelMetrics.itemSize.height)
+                        .allowsHitTesting(false)
+                }
+            }
             .padding(.vertical, BezelMetrics.inset)
             .frame(width: geometry.size.width, height: geometry.size.height)
         }
         .preferredColorScheme(.dark)
+    }
+
+    /// The ring appears on the incoming item and eases to the centre slot
+    /// ahead of the strip, so the mark arrives before the card.
+    private func moveRing() {
+        guard !reduceMotion else {
+            ringOffset = 0
+            return
+        }
+        let pitch = BezelMetrics.itemSize.width + BezelMetrics.itemSpacing
+        let move = state.moves
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            ringOffset = CGFloat(state.direction) * pitch
+        }
+        DispatchQueue.main.async {
+            guard state.moves == move else { return }
+            withAnimation(BezelMetrics.selectionMove) { ringOffset = 0 }
+        }
     }
 
     /// The list is drawn three times; the live item sits in the middle copy so
@@ -399,8 +439,8 @@ private struct BezelView: View {
     }
 }
 
-/// One item on the glass. Nothing frames it: the selected item is the only
-/// thing at full size and full brightness, and its neighbours fall back.
+/// One item on the glass. The selected item is the only one at full size
+/// and full brightness; the ring around that slot is drawn separately.
 private struct ClipCard: View {
     let item: HistoryItem
     let imageURL: URL?
@@ -466,5 +506,35 @@ private struct ClipCard: View {
                 kCGImageSourceCreateThumbnailWithTransform: true
               ] as CFDictionary) else { return }
         thumbnail = NSImage(cgImage: image, size: .zero)
+    }
+}
+
+/// The item Return will paste. A warm plate stroke, the colour of the ground
+/// the bowtie is shown on, held off the item so it never touches the type.
+private struct SelectionRing: View {
+    var offset: CGFloat
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    /// Bowtie ink, and the warm plate behind it. Not a new brand colour.
+    private static let ink = Color(red: 28 / 255, green: 27 / 255, blue: 25 / 255)
+    private static let plate = Color(red: 230 / 255, green: 211 / 255, blue: 176 / 255)
+
+    private var strong: Bool { contrast == .increased }
+    private var stroke: CGFloat { strong ? BezelMetrics.selectionStroke + 1 : BezelMetrics.selectionStroke }
+    private var color: Color {
+        if scheme == .light { return strong ? .black : Self.ink }
+        return strong ? .white : Self.plate
+    }
+
+    var body: some View {
+        let gap = BezelMetrics.selectionGap
+        let outer = BezelMetrics.itemRadius + gap + stroke
+        RoundedRectangle(cornerRadius: outer)
+            .strokeBorder(color, lineWidth: stroke)
+            .frame(width: BezelMetrics.itemSize.width + (gap + stroke) * 2,
+                   height: BezelMetrics.itemSize.height + (gap + stroke) * 2)
+            .offset(x: offset)
+            .accessibilityHidden(true)
     }
 }

@@ -18,8 +18,9 @@
     <h2>01 · Still</h2>
     <p class="idea">The whole bezel, life size, on paper. Picture, note, file.</p>
     <div class="stage v1">
-      <div class="bezel">
+      <div class="bezel select-a">
         <div class="surface">
+          <div class="ring"></div>
           <div class="strip">
             <div class="item image pos-l"><img src="assets/portrait.png" alt=""></div>
             <div class="item text pos-c"><p>Coffee with Sam at 11,<br>then the design review.<br>Bring the checklist.<br>Small room after.</p></div>
@@ -130,7 +131,14 @@
   if (shot) {
     document.documentElement.dataset.shot = shot;
     document.documentElement.dataset.frame = params.get("frame") || "hero";
-    document.getElementById(shot)?.querySelector(".stage")?.classList.add("on");
+    const stage = document.getElementById(shot)?.querySelector(".stage");
+    stage?.classList.add("on");
+    const select = params.get("select");
+    if (select) {
+      const bezel = stage?.querySelector(".bezel");
+      bezel?.classList.remove("select-a", "select-b", "select-c");
+      bezel?.classList.add("select-" + select);
+    }
   }
 </script>
 </body>

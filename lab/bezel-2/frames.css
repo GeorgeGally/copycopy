@@ -55,6 +55,41 @@ html, body {
 .v1 { background: var(--paper); }
 .v1 .bezel { position: absolute; left: 40px; top: 74px; }
 
+/* Selection studies. Drawn beside the strip: the strip's edge mask
+   clips an outline, so a full ring would lose its top and bottom.
+   (a) and (b) sit 3px off the item, 1.5px thick. The accent is the
+   warm plate the bowtie is shown on, not a new hue. */
+.ring { display: none; }
+.select-a .ring,
+.select-b .ring,
+.select-c .ring {
+  display: block;
+  position: absolute;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+.select-a .ring,
+.select-b .ring {
+  left: 237.5px;
+  top: 9.5px;
+  width: 245px;
+  height: 193px;
+  border-radius: 14.5px;
+  border-width: 1.5px;
+  border-style: solid;
+}
+.select-a .ring { border-color: #E6D3B0; }
+.select-b .ring { border-color: #fff; }
+.select-c .ring {
+  left: 242px;
+  top: 14px;
+  width: 236px;
+  height: 184px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+}
+
 /* 2 — Line. The same panel, pulled in until the note is the picture.
    Side crops dissolve into the black so the frame is a crop, not a slice. */
 .v2 { background: #0E0D0C; }

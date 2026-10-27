@@ -48,6 +48,15 @@ for pair in "${names[@]}"; do
   pids+=($!)
 done
 
+for letter in a b c; do
+  (
+    shoot 800 400 "$OUT/v1-select-$letter-hero.png" "file://$ROOT/frames.html?shot=v1&frame=hero&select=$letter"
+    shoot 640 320 "$OUT/v1-select-$letter-social.png" "file://$ROOT/frames.html?shot=v1&frame=social&select=$letter"
+    echo "done select-$letter"
+  ) &
+  pids+=($!)
+done
+
 fail=0
 for pid in "${pids[@]}"; do
   wait "$pid" || fail=1
@@ -72,8 +81,8 @@ def size(path):
 out = Path(sys.argv[1])
 bad = False
 paths = sorted(out.glob("v*-*.png"))
-if len(paths) != 10:
-    print(f"expected 10 pngs, found {len(paths)}")
+if len(paths) != 16:
+    print(f"expected 16 pngs, found {len(paths)}")
     bad = True
 for path in paths:
     w, h = size(path)

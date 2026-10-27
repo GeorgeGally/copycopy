@@ -69,3 +69,31 @@ The PDF is the selected item, big enough that the white page and the red badge s
 - README hero: **Face**, with Still as the alternate if the portrait feels too much like the existing Roger Moore art.
 - The X post: **Face**.
 - GitHub social preview: **Name**, because it is the only frame with the product's name. Face if the repo name beside the card is enough.
+
+George picked **Still**.
+
+## Selection
+
+The selected item was only larger and brighter. At thumbnail size that is just "the bright card", and Return pastes whatever is bright. It needs a mark. Three treatments on Still only, judged from the PNGs, including each hero reduced to 480px wide. No glow, no shadow, no thick box.
+
+The ring is a real rectangle, not a side rule. On the 1600px hero it spans 490×386 device pixels around the 472×368 item: 1.5px of stroke and 3px of glass on every side, top and bottom included.
+
+### (a) Warm plate — 9
+
+`shots/v1-select-a-hero.png`, `shots/v1-select-a-social.png`
+
+1.5px stroke, 3px off the item, in the warm plate the bowtie is shown on (`#E6D3B0`). At 480px wide the stroke is still a warm pair of pixels (about L137 against glass at L36), with a dark pixel of gap on either side, and the top of the ring holds at about L180. It does not touch the type, and it is not the same white as the words, so the note and the mark stay separate. This is the one.
+
+### (b) White — 8
+
+`shots/v1-select-b-hero.png`, `shots/v1-select-b-social.png`
+
+The same ring in white. Higher raw contrast (side about L161, top about L215) and it is unmistakable. It is also the same white as the mono, so at thumbnail size the top rule sits against the glyphs and the mark starts to read as part of the type. Nothing of the brand in it that the type did not already spend.
+
+### (c) Filled tile — 6
+
+`shots/v1-select-c-hero.png`, `shots/v1-select-c-social.png`
+
+A tile at `rgba(255,255,255,0.07)` behind the item, plus a 1px white rule on the item edge, no gap. The fill measures (51,51,53) against glass at (36,36,38), a lift of about 15. At 480px that tile is a faint lighter rectangle and the hairline (side about L140, top about L126) boxes the note instead of standing off it. The selection cue does not survive the thumbnail.
+
+Shipped (a). `v1-still-hero.png` and `v1-still-social.png` were reshot from it and match `v1-select-a-hero.png` and `v1-select-a-social.png`.
