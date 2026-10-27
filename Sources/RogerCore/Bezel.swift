@@ -25,8 +25,8 @@ package enum BezelMetrics {
     static let selectionGap: CGFloat = 3
     static let selectionStroke: CGFloat = 1
     static let selectionStrokeStrong: CGFloat = 2
-    /// Half strength. Increase Contrast ignores this and paints the line solid.
-    static let selectionOpacity = 0.5
+    /// A quarter. Increase Contrast ignores this and paints the line solid.
+    static let selectionOpacity = 0.25
     /// How fast the ring leaves one item and settles on the next.
     static let selectionMove = Animation.easeOut(duration: 0.12)
 }

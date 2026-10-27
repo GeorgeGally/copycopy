@@ -58,7 +58,7 @@ html, body {
 /* Selection studies. Drawn beside the strip: the strip's edge mask
    clips an outline, so a full ring would lose its top and bottom.
    (a) is the app: 1px, on whole pixels, 3px off the item, in the
-   warm plate the bowtie is shown on, at half strength. (b) is the
+   warm plate the bowtie is shown on, at a quarter strength. (b) is the
    same ring in white at the weight it was scored. */
 .ring { display: none; }
 .select-a .ring,
@@ -75,7 +75,7 @@ html, body {
   width: 244px;
   height: 192px;
   border-radius: 14px;
-  border: 1px solid rgba(230, 211, 176, 0.5);
+  border: 1px solid rgba(230, 211, 176, 0.25);
 }
 .select-b .ring {
   left: 237.5px;
