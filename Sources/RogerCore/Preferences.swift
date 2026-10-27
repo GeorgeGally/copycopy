@@ -18,15 +18,19 @@ package enum LegacyPreferences {
 @MainActor
 final class PreferencesController: NSObject, NSWindowDelegate {
     private let hotKey: HotKey
+    private let store: HistoryStore
     private let window: NSWindow
     private let field = ShortcutField()
     private let caption = NSTextField(labelWithString: "")
+    private let historyCaption = NSTextField(labelWithString: "Pastes kept")
+    private let historyLimit = NSPopUpButton()
     private let message = NSTextField(labelWithString: "")
     var onChange: (() -> Void)?
 
-    init(hotKey: HotKey) {
+    init(hotKey: HotKey, store: HistoryStore) {
         self.hotKey = hotKey
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 120),
+        self.store = store
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 176),
                           styleMask: [.titled, .closable], backing: .buffered, defer: false)
         super.init()
 
@@ -36,17 +40,31 @@ final class PreferencesController: NSObject, NSWindowDelegate {
         window.center()
         let content = window.contentView ?? NSView()
 
-        field.frame = NSRect(x: 20, y: 58, width: 260, height: 40)
+        field.frame = NSRect(x: 20, y: 116, width: 260, height: 40)
         field.shortcut = hotKey.shortcut
         field.onCapture = { [weak self] in self?.apply($0) }
         content.addSubview(field)
 
-        caption.frame = NSRect(x: 20, y: 36, width: 260, height: 16)
+        caption.frame = NSRect(x: 20, y: 94, width: 260, height: 16)
         caption.font = .systemFont(ofSize: 11)
         caption.textColor = .secondaryLabelColor
         caption.alignment = .center
         caption.lineBreakMode = .byTruncatingTail
         content.addSubview(caption)
+
+        historyCaption.frame = NSRect(x: 20, y: 70, width: 260, height: 16)
+        historyCaption.font = .systemFont(ofSize: 11)
+        historyCaption.textColor = .secondaryLabelColor
+        historyCaption.alignment = .center
+        content.addSubview(historyCaption)
+
+        historyLimit.frame = NSRect(x: 20, y: 40, width: 260, height: 26)
+        historyLimit.target = self
+        historyLimit.action = #selector(historyLimitChanged(_:))
+        for choice in HistoryLimit.choices {
+            historyLimit.addItem(withTitle: "\(choice)")
+        }
+        content.addSubview(historyLimit)
 
         message.frame = NSRect(x: 20, y: 16, width: 260, height: 16)
         message.font = .systemFont(ofSize: 11)
@@ -60,9 +78,15 @@ final class PreferencesController: NSObject, NSWindowDelegate {
         field.shortcut = hotKey.shortcut
         field.stopRecording()
         caption.stringValue = hotKey.shortcut.words
+        historyLimit.selectItem(withTitle: "\(store.itemLimit)")
         message.stringValue = ""
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
+    }
+
+    @objc private func historyLimitChanged(_ sender: NSPopUpButton) {
+        guard let title = sender.titleOfSelectedItem, let limit = Int(title) else { return }
+        store.setItemLimit(limit)
     }
 
     func windowWillClose(_ notification: Notification) {
