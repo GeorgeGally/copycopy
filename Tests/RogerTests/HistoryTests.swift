@@ -399,6 +399,57 @@ struct HistoryTests {
         #expect(HistoryLimit.stored(in: defaults) == HistoryLimit.standard)
     }
 
+    /// The ring is the middle of the viewport. `scrollPosition`'s id is one
+    /// card to the right, because the leading inset is almost a whole pitch.
+    /// The counter and Return follow this mapping, including a stop in the gap.
+    @Test func offsetMapsToTheCardUnderTheRingNotTheNeighbourOnTheRight() throws {
+        let width = BezelMetrics.width
+        let count = 50
+        let cards = count * 3
+        let third = count + 2
+        let centred = BezelMetrics.offset(centering: third, viewportWidth: width)
+        #expect(BezelMetrics.centeredIndex(offset: centred, viewportWidth: width, cards: cards) == third)
+        #expect(BezelMetrics.centeredIndex(offset: centred, viewportWidth: width, cards: cards) % count == 2)
+
+        let inset = BezelMetrics.leadingInset(viewportWidth: width)
+        let reportedByScrollPosition = Int(((centred + inset) / BezelMetrics.pitch).rounded(.toNearestOrAwayFromZero))
+        #expect(reportedByScrollPosition == third + 1)
+        #expect(reportedByScrollPosition % count == 3)
+
+        let pitch = BezelMetrics.pitch
+        #expect(BezelMetrics.centeredIndex(offset: centred + pitch * 0.25, viewportWidth: width, cards: cards) == third)
+        #expect(BezelMetrics.centeredIndex(offset: centred + pitch * 0.75, viewportWidth: width, cards: cards) == third + 1)
+        #expect(BezelMetrics.centeredIndex(offset: centred + pitch * 0.5, viewportWidth: width, cards: cards) == third + 1)
+        #expect(BezelMetrics.centeredIndex(offset: -400, viewportWidth: width, cards: cards) == 0)
+        #expect(BezelMetrics.centeredIndex(offset: 1_000_000, viewportWidth: width, cards: cards) == cards - 1)
+
+        let narrow: CGFloat = 200
+        let narrowInset = BezelMetrics.leadingInset(viewportWidth: narrow)
+        #expect(narrowInset == BezelMetrics.inset)
+        let parked = BezelMetrics.offset(centering: 4, viewportWidth: narrow, inset: narrowInset)
+        #expect(BezelMetrics.centeredIndex(offset: parked, viewportWidth: narrow, cards: cards, inset: narrowInset) == 4)
+        #expect(BezelMetrics.centeredIndex(offset: parked + pitch * 0.2, viewportWidth: narrow, cards: cards, inset: narrowInset) == 4)
+
+        let path = directory()
+        defer { try? FileManager.default.removeItem(at: path) }
+        let store = HistoryStore(directory: path, itemLimit: 200)
+        for value in 0..<count { store.recordText("Item \(value)") }
+        let itemIndex = BezelMetrics.centeredIndex(offset: centred, viewportWidth: width, cards: cards) % count
+        let underRing = try #require(store.items.dropFirst(itemIndex).first)
+        let onTheRight = try #require(store.items.dropFirst(itemIndex + 1).first)
+        let bezel = BezelController(store: store)
+        var pasted: HistoryItem?
+        bezel.onSelect = { pasted = $0 }
+        bezel.show(items: store.items, frontApp: nil)
+        defer { bezel.dismiss() }
+        bezel.state.adoptCentered(itemIndex)
+        #expect(bezel.state.selection + 1 == 3)
+        #expect(bezel.state.selected?.id == underRing.id)
+        try pressReturn(on: bezel)
+        #expect(pasted?.id == underRing.id)
+        #expect(pasted?.id != onTheRight.id)
+    }
+
     /// Keyboard steps follow the card under the ring, not the index left
     /// behind when the strip was last opened.
     @Test func stepContinuesFromTheCenteredItem() {

@@ -30,6 +30,43 @@ package enum BezelMetrics {
     static let selectionOpacity = 0.25
     /// How fast the ring leaves one item and settles on the next.
     static let selectionMove = Animation.easeOut(duration: 0.12)
+
+    /// Distance from one card's centre to the next.
+    package static var pitch: CGFloat { itemSize.width + itemSpacing }
+
+    /// Space before the first card. Wide enough that card 0 can sit in the middle.
+    package static func leadingInset(viewportWidth: CGFloat) -> CGFloat {
+        max(inset, (viewportWidth - itemSize.width) / 2)
+    }
+
+    /// The card under the ring.
+    ///
+    /// `offset` is the scroll view's document offset (it grows as the strip
+    /// moves toward older pastes) and `viewportWidth` is the visible width.
+    /// Card centres sit at `inset + width/2`, then every `pitch`. The ring is
+    /// the middle of that viewport, so this is the centre nearest that point.
+    /// A stop in the gap belongs to the nearer card. The exact midpoint
+    /// belongs to the next card: the viewport centre has reached halfway
+    /// between the two card centres.
+    ///
+    /// `scrollPosition(id:anchor: .center)` does not return this. The leading
+    /// inset lives inside the scrolled content, and with view-aligned targets
+    /// the id it writes back is `round((offset + inset) / pitch)`. On a 720pt
+    /// bezel the inset is 242pt and the pitch is 256pt, so that rounds up to
+    /// the neighbour on the right — the card Return was pasting.
+    package static func centeredIndex(offset: CGFloat, viewportWidth: CGFloat, cards: Int, inset: CGFloat? = nil) -> Int {
+        guard cards > 0, viewportWidth > 0 else { return 0 }
+        let inset = inset ?? leadingInset(viewportWidth: viewportWidth)
+        let raw = (offset + viewportWidth / 2 - (inset + itemSize.width / 2)) / pitch
+        let rounded = Int(raw.rounded(.toNearestOrAwayFromZero))
+        return min(max(rounded, 0), cards - 1)
+    }
+
+    /// Document offset that puts `index` under the ring. The inverse of `centeredIndex`.
+    package static func offset(centering index: Int, viewportWidth: CGFloat, inset: CGFloat? = nil) -> CGFloat {
+        let inset = inset ?? leadingInset(viewportWidth: viewportWidth)
+        return CGFloat(index) * pitch + inset + itemSize.width / 2 - viewportWidth / 2
+    }
 }
 
 /// The window's content: one rounded surface with a soft layered shadow
@@ -362,8 +399,17 @@ private struct BezelView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var scrolled: Int?
     @State private var position = 0
-    /// The strip position last asked for. Scroll events that are not this one
-    /// belong to the trackpad, and the centred card becomes the selection.
+    /// Document offset and the clip view's width. The centred card is derived
+    /// from these, not from the id `scrollPosition` reports.
+    @State private var stripOffset: CGFloat = 0
+    @State private var stripWidth: CGFloat = 0
+    @State private var stripInset: CGFloat = 0
+    /// The document starts at offset 0 before the opening scroll. Ignore that
+    /// sample when a later card was placed, and keep accepting offset 0 once
+    /// the strip has moved, so a scroll back to the newest paste still lands.
+    @State private var leftOrigin = false
+    /// The strip position last asked for. Offset samples taken while this is
+    /// set belong to that animation, not to a trackpad scroll.
     @State private var drivenTarget: Int?
     /// Horizontal offset of the selection ring while it eases onto the next item.
     @State private var ringOffset: CGFloat = 0
@@ -377,6 +423,7 @@ private struct BezelView: View {
                         .foregroundStyle(.white.opacity(0.5))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
+                    let inset = BezelMetrics.leadingInset(viewportWidth: geometry.size.width)
                     ScrollView(.horizontal) {
                         LazyHStack(spacing: BezelMetrics.itemSpacing) {
                             ForEach(Array(0..<(state.items.count * 3)), id: \.self) { ring in
@@ -387,19 +434,21 @@ private struct BezelView: View {
                             }
                         }
                         .scrollTargetLayout()
-                        .padding(.horizontal, max(BezelMetrics.inset, (geometry.size.width - BezelMetrics.itemSize.width) / 2))
+                        .padding(.horizontal, inset)
+                        .background {
+                            StripOffset { offset, visibleWidth in
+                                guard abs(offset - stripOffset) > 0.5 || abs(visibleWidth - stripWidth) > 0.5 || inset != stripInset else { return }
+                                stripOffset = offset
+                                stripWidth = visibleWidth
+                                stripInset = inset
+                                adoptOffset()
+                            }
+                            .allowsHitTesting(false)
+                        }
                     }
                     .scrollPosition(id: $scrolled, anchor: .center)
-                    .scrollTargetBehavior(.viewAligned)
                     .scrollIndicators(.hidden)
                     .scrollClipDisabled()
-                    .onChange(of: scrolled) { _, id in
-                        guard drivenTarget == nil, let id, !state.items.isEmpty else { return }
-                        // The next key step continues from this card. Leaving
-                        // `position` at the last keyboard slot would jump back.
-                        position = id
-                        state.adoptCentered(id % state.items.count)
-                    }
                     .mask(
                         HStack(spacing: 0) {
                             LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing)
@@ -422,6 +471,7 @@ private struct BezelView: View {
                     .frame(height: BezelMetrics.itemSize.height)
                 }
                 Text(state.notice ?? (state.items.isEmpty ? "0 of 0" : "\(state.selection + 1) of \(state.items.count)"))
+                    // The same item the ring frames and Return pastes.
                     .font(.system(size: 12, weight: .medium))
                     .monospacedDigit()
                     .foregroundStyle(.white.opacity(0.5))
@@ -488,7 +538,7 @@ private struct BezelView: View {
     }
 
     private func scroll(to target: Int, animated: Bool) {
-        let previous = scrolled
+        let previousOffset = stripOffset
         drivenTarget = target
         if animated {
             withAnimation(BezelMetrics.selectionSpring) { scrolled = target }
@@ -501,12 +551,25 @@ private struct BezelView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + (animated ? 0.45 : 0.05)) {
             guard drivenTarget == requested else { return }
             drivenTarget = nil
-            // A scroll that has not moved yet is still reporting the previous
-            // card. Adopting that id would paste it after a list change.
-            guard let id = scrolled, id != previous, !state.items.isEmpty else { return }
-            position = id
-            state.adoptCentered(id % state.items.count)
+            // Still on the pre-scroll offset: the clip view has not reported
+            // the landing yet. Adopting it would paste the card we just left.
+            guard abs(stripOffset - previousOffset) > 0.5 else { return }
+            adoptOffset()
         }
+    }
+
+    /// Label, highlight, and Return all read the item this chooses.
+    private func adoptOffset() {
+        guard drivenTarget == nil, stripWidth > 1, !state.items.isEmpty else { return }
+        if abs(stripOffset) < BezelMetrics.pitch / 2 {
+            if !leftOrigin, state.selection != 0 { return }
+        } else {
+            leftOrigin = true
+        }
+        let count = state.items.count
+        let index = BezelMetrics.centeredIndex(offset: stripOffset, viewportWidth: stripWidth, cards: count * 3, inset: stripInset)
+        position = index
+        state.adoptCentered(index % count)
     }
 }
 
@@ -577,6 +640,105 @@ private struct ClipCard: View {
                 kCGImageSourceCreateThumbnailWithTransform: true
               ] as CFDictionary) else { return }
         thumbnail = NSImage(cgImage: image, size: .zero)
+    }
+}
+
+/// Reads the scroll view's document offset. Selection is `centeredIndex` of
+/// this value: the card under the ring, which is also the counter and the paste.
+private struct StripOffset: NSViewRepresentable {
+    var onChange: (CGFloat, CGFloat) -> Void
+
+    func makeNSView(context: Context) -> StripOffsetProbe {
+        let view = StripOffsetProbe()
+        view.onChange = onChange
+        return view
+    }
+
+    func updateNSView(_ view: StripOffsetProbe, context: Context) {
+        view.onChange = onChange
+    }
+}
+
+private final class StripOffsetProbe: NSView {
+    var onChange: ((CGFloat, CGFloat) -> Void)?
+    private var started = false
+    private var pending = false
+    private weak var scroll: NSScrollView?
+
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        start()
+    }
+
+    override func layout() {
+        super.layout()
+        start()
+    }
+
+    /// The strip's scroll view. The probe sits in the scrolling content, but if
+    /// SwiftUI hosts that background beside the scroll view instead, the panel
+    /// still has only one.
+    private func scrollView() -> NSScrollView? {
+        if let scroll, scroll.window != nil { return scroll }
+        if let found = enclosingScrollView {
+            scroll = found
+            return found
+        }
+        var ancestor: NSView? = superview
+        while let view = ancestor {
+            if let found = Self.findScroll(in: view) {
+                scroll = found
+                return found
+            }
+            ancestor = view.superview
+        }
+        if let root = window?.contentView, let found = Self.findScroll(in: root) {
+            scroll = found
+            return found
+        }
+        return nil
+    }
+
+    private static func findScroll(in view: NSView) -> NSScrollView? {
+        if let scroll = view as? NSScrollView { return scroll }
+        for subview in view.subviews {
+            if let scroll = findScroll(in: subview) { return scroll }
+        }
+        return nil
+    }
+
+    private func start() {
+        guard !started, let clip = scrollView()?.contentView else { return }
+        started = true
+        clip.postsBoundsChangedNotifications = true
+        NotificationCenter.default.addObserver(self, selector: #selector(clipBoundsChanged(_:)),
+                                               name: NSView.boundsDidChangeNotification, object: clip)
+        schedule()
+    }
+
+    @objc private func clipBoundsChanged(_ notification: Notification) {
+        schedule()
+    }
+
+    /// One sample per turn, after the scroll view has finished this layout pass.
+    private func schedule() {
+        guard !pending else { return }
+        pending = true
+        perform(#selector(deliverOffset(_:)), with: nil, afterDelay: 0)
+    }
+
+    @objc private func deliverOffset(_ sender: Any?) {
+        pending = false
+        guard let scroll = scrollView() else { return }
+        let rect = scroll.documentVisibleRect
+        onChange?(rect.origin.x, rect.width)
+    }
+
+    deinit {
+        NSObject.cancelPreviousPerformRequests(withTarget: self)
+        NotificationCenter.default.removeObserver(self)
     }
 }
 
