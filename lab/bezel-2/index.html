@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Roger · bezel, five ways</title>
+<style>
+  :root {
+    --sans: Inter, -apple-system, "Helvetica Neue", sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+    --serif: "Noto Serif Display", "Noto Serif", serif;
+    --ink: #1C1B19;
+    --muted: #6F6A62;
+    --line: #DDD8CF;
+    --paper: #F6F4EF;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font: 400 15px/1.5 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  .sheet { width: 880px; margin: 0 auto; padding: 56px 0 96px; }
+  header { padding-bottom: 28px; border-bottom: 1px solid var(--line); }
+  .eyebrow {
+    margin: 0 0 10px;
+    font: 500 12px/1 var(--mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  h1 {
+    margin: 0 0 8px;
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: 40px;
+    line-height: 1;
+    letter-spacing: -0.03em;
+  }
+  header p { margin: 0; max-width: 520px; color: var(--muted); }
+  article { padding: 36px 0 8px; border-bottom: 1px solid var(--line); }
+  .row { display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; }
+  .num { font: 500 12px/1 var(--mono); color: var(--muted); }
+  h2 { margin: 0; font: 500 18px/1 var(--sans); letter-spacing: -0.02em; }
+  .score { margin-left: auto; font: 500 12px/1 var(--mono); color: var(--muted); }
+  .idea { margin: 0 0 14px; color: #3F3C37; }
+  figure { margin: 0 0 16px; }
+  img { display: block; width: 100%; height: auto; }
+  .hero {
+    border-radius: 4px;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+  }
+  .pair { display: flex; gap: 16px; align-items: flex-end; }
+  .social { width: 420px; }
+  figcaption {
+    margin-top: 6px;
+    font: 400 11px/1 var(--mono);
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <header>
+    <p class="eyebrow">Roger · design lab</p>
+    <h1>Five bezels.</h1>
+    <p>Same panel the app draws. Five ways of putting it in a frame. Heroes are 1600×800. The smaller frame is the 1280×640 social.</p>
+  </header>
+
+  <article>
+    <div class="row"><span class="num">01</span><h2>Still</h2><span class="score">8 / 10</span></div>
+    <p class="idea">The whole bezel, life size, on paper. Picture, note, and file in one strip.</p>
+    <figure><img class="hero" src="shots/v1-still-hero.png" alt="Still. Roger's bezel centred on warm paper, a note selected between a photograph and a PDF."><figcaption>shots/v1-still-hero.png · 1600×800</figcaption></figure>
+    <figure class="social"><img class="hero" src="shots/v1-still-social.png" alt="Social crop of Still."><figcaption>shots/v1-still-social.png · 1280×640</figcaption></figure>
+  </article>
+
+  <article>
+    <div class="row"><span class="num">02</span><h2>Line</h2><span class="score">8 / 10</span></div>
+    <p class="idea">The note, cropped until the sentence is large enough to read on a phone. The counter stays.</p>
+    <figure><img class="hero" src="shots/v2-line-hero.png" alt="Line. A close crop of the selected note inside the bezel, with the counter 2 of 5."><figcaption>shots/v2-line-hero.png · 1600×800</figcaption></figure>
+    <figure class="social"><img class="hero" src="shots/v2-line-social.png" alt="Social crop of Line."><figcaption>shots/v2-line-social.png · 1280×640</figcaption></figure>
+  </article>
+
+  <article>
+    <div class="row"><span class="num">03</span><h2>Face</h2><span class="score">9 / 10</span></div>
+    <p class="idea">The copied image, selected and framed, on gallery white.</p>
+    <figure><img class="hero" src="shots/v3-face-hero.png" alt="Face. The bezel with a portrait selected in the centre, a note and a PDF beside it."><figcaption>shots/v3-face-hero.png · 1600×800</figcaption></figure>
+    <figure class="social"><img class="hero" src="shots/v3-face-social.png" alt="Social crop of Face."><figcaption>shots/v3-face-social.png · 1280×640</figcaption></figure>
+  </article>
+
+  <article>
+    <div class="row"><span class="num">04</span><h2>Page</h2><span class="score">8 / 10</span></div>
+    <p class="idea">The bezel opened over a note. The diary line stays outside the glass.</p>
+    <figure><img class="hero" src="shots/v4-page-hero.png" alt="Page. A typeset Thursday note with the bezel between two lines of the diary."><figcaption>shots/v4-page-hero.png · 1600×800</figcaption></figure>
+    <figure class="social"><img class="hero" src="shots/v4-page-social.png" alt="Social crop of Page."><figcaption>shots/v4-page-social.png · 1280×640</figcaption></figure>
+  </article>
+
+  <article>
+    <div class="row"><span class="num">05</span><h2>Name</h2><span class="score">8 / 10</span></div>
+    <p class="idea">The file at full strength, large. Roger and the shortcut sit above the panel.</p>
+    <figure><img class="hero" src="shots/v5-name-hero.png" alt="Name. The bezel with a PDF selected, and the word Roger with the shortcut underneath."><figcaption>shots/v5-name-hero.png · 1600×800</figcaption></figure>
+    <figure class="social"><img class="hero" src="shots/v5-name-social.png" alt="Social crop of Name."><figcaption>shots/v5-name-social.png · 1280×640</figcaption></figure>
+  </article>
+</div>
+</body>
+</html>
