@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Roger · bezel lab</title>
+<link rel="stylesheet" href="bezel.css">
+<link rel="stylesheet" href="frames.css">
+</head>
+<body>
+<div class="lab">
+
+  <header class="mast">
+    <h1>Roger · bezel</h1>
+    <p>Five directions. The glass is the same object in each.</p>
+  </header>
+
+  <section class="entry" id="v1">
+    <h2>01 · Still</h2>
+    <p class="idea">The whole bezel, life size, on paper. Picture, note, file.</p>
+    <div class="stage v1">
+      <div class="bezel select-a">
+        <div class="surface">
+          <div class="ring"></div>
+          <div class="strip">
+            <div class="item image pos-l"><img src="assets/portrait.png" alt=""></div>
+            <div class="item text pos-c"><p>Pick up tux.<br>Return Aston Martin<br>(no bullet holes).<br>Martini: shaken.</p></div>
+            <div class="item file pos-r">
+              <img class="glyph" src="assets/pdf.svg" alt="">
+              <span class="name">Mission brief.pdf</span>
+            </div>
+          </div>
+          <p class="counter">2 of 5</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="entry" id="v2">
+    <h2>02 · Line</h2>
+    <p class="idea">The note, cropped until the sentence is the poster. Counter kept.</p>
+    <div class="stage v2">
+      <div class="bezel">
+        <div class="surface">
+          <div class="strip">
+            <div class="item image pos-l"><img src="assets/portrait.png" alt=""></div>
+            <div class="item text pos-c"><p>Pick up tux.<br>Return Aston Martin<br>(no bullet holes).<br>Martini: shaken.</p></div>
+            <div class="item file pos-r">
+              <img class="glyph" src="assets/pdf.svg" alt="">
+              <span class="name">Mission brief.pdf</span>
+            </div>
+          </div>
+          <p class="counter">2 of 5</p>
+        </div>
+      </div>
+      <div class="veil"></div>
+    </div>
+  </section>
+
+  <section class="entry" id="v3">
+    <h2>03 · Face</h2>
+    <p class="idea">The copied image, selected and framed. Gallery white.</p>
+    <div class="stage v3">
+      <div class="bezel">
+        <div class="surface">
+          <div class="strip">
+            <div class="item text pos-l"><p>Pick up tux.<br>Return Aston Martin<br>(no bullet holes).<br>Martini: shaken.</p></div>
+            <div class="item image pos-c"><img src="assets/portrait.png" alt=""></div>
+            <div class="item file pos-r">
+              <img class="glyph" src="assets/pdf.svg" alt="">
+              <span class="name">Mission brief.pdf</span>
+            </div>
+          </div>
+          <p class="counter">2 of 5</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="entry" id="v4">
+    <h2>04 · Page</h2>
+    <p class="idea">Opened over a note. The diary line stays outside the glass.</p>
+    <div class="stage v4">
+      <p class="kicker">Thursday</p>
+      <p class="lead">Pick up tux.</p>
+      <div class="bezel">
+        <div class="surface">
+          <div class="strip">
+            <div class="item image pos-l"><img src="assets/portrait.png" alt=""></div>
+            <div class="item text pos-c"><p>Pick up tux.<br>Return Aston Martin<br>(no bullet holes).<br>Martini: shaken.</p></div>
+            <div class="item file pos-r">
+              <img class="glyph" src="assets/pdf.svg" alt="">
+              <span class="name">Mission brief.pdf</span>
+            </div>
+          </div>
+          <p class="counter">2 of 5</p>
+        </div>
+      </div>
+      <p class="tail">Martini: shaken.</p>
+    </div>
+  </section>
+
+  <section class="entry" id="v5">
+    <h2>05 · Name</h2>
+    <p class="idea">The file at full strength, large enough to see. The name sits above the panel, because the panel never says it.</p>
+    <div class="stage v5">
+      <div class="bezel">
+        <div class="surface">
+          <div class="strip">
+            <div class="item text pos-l"><p>Pick up tux.<br>Return Aston Martin<br>(no bullet holes).<br>Martini: shaken.</p></div>
+            <div class="item file pos-c">
+              <img class="glyph" src="assets/pdf.svg" alt="">
+              <span class="name">Mission brief.pdf</span>
+            </div>
+            <div class="item text pos-r"><p>git rebase<br>--autosquash<br>origin/main</p></div>
+          </div>
+          <p class="counter">3 of 5</p>
+        </div>
+      </div>
+      <div class="lockup">
+        <img class="mark" src="../assets/mark.png" alt="">
+        <span class="name">Roger</span>
+        <span class="keys">⌃⌥⌘V</span>
+      </div>
+    </div>
+  </section>
+
+</div>
+<script>
+  const params = new URLSearchParams(location.search);
+  const shot = params.get("shot");
+  if (shot) {
+    document.documentElement.dataset.shot = shot;
+    document.documentElement.dataset.frame = params.get("frame") || "hero";
+    const stage = document.getElementById(shot)?.querySelector(".stage");
+    stage?.classList.add("on");
+    const select = params.get("select");
+    if (select) {
+      const bezel = stage?.querySelector(".bezel");
+      bezel?.classList.remove("select-a", "select-b", "select-c");
+      bezel?.classList.add("select-" + select);
+    }
+  }
+</script>
+</body>
+</html>

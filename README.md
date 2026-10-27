@@ -1,6 +1,6 @@
 # Roger
 
-![Roger Moore as James Bond](docs/screenshots/roger-moore.png)
+![Roger's clipboard history panel, with the selected note ringed](docs/screenshots/hero.png)
 
 A clipboard history for macOS: every text, image and file you copy, one
 keystroke away in the menu bar.

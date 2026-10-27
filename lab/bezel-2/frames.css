@@ -1,0 +1,241 @@
+:root {
+  --sans: Inter, -apple-system, "Helvetica Neue", sans-serif;
+  --serif: "Noto Serif", "Liberation Serif", serif;
+  --display: "Noto Serif Display", "Noto Serif", serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+  --ink: #1C1B19;
+  --paper: #E4DFD6;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: #E8E4DC;
+  color: var(--ink);
+  font: 400 14px/1.45 var(--sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+.lab {
+  width: 800px;
+  margin: 0 auto;
+  padding: 48px 0 80px;
+}
+
+.mast {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #D4CFC6;
+}
+
+.mast h1 {
+  margin: 0;
+  font: 500 15px/1 var(--mono);
+  letter-spacing: 0.01em;
+}
+
+.mast p { margin: 0; color: #6F6A62; font-size: 13px; }
+
+.entry { padding-top: 48px; }
+.entry h2 { margin: 0 0 4px; font: 500 13px/1 var(--mono); letter-spacing: 0.03em; }
+.entry .idea { margin: 0 0 14px; max-width: 640px; color: #5E5A53; font-size: 13.5px; }
+
+.stage {
+  position: relative;
+  width: 800px;
+  height: 400px;
+  overflow: hidden;
+}
+
+/* 1 — Still. The object, life size. */
+.v1 { background: var(--paper); }
+.v1 .bezel { position: absolute; left: 40px; top: 74px; }
+
+/* Selection studies. Drawn beside the strip: the strip's edge mask
+   clips an outline, so a full ring would lose its top and bottom.
+   (a) is the app: 1px, on whole pixels, 3px off the item, in the
+   warm plate the bowtie is shown on, at a quarter strength. (b) is the
+   same ring in white at the weight it was scored. */
+.ring { display: none; }
+.select-a .ring,
+.select-b .ring,
+.select-c .ring {
+  display: block;
+  position: absolute;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+.select-a .ring {
+  left: 238px;
+  top: 10px;
+  width: 244px;
+  height: 192px;
+  border-radius: 14px;
+  border: 1px solid rgba(230, 211, 176, 0.25);
+}
+.select-b .ring {
+  left: 237.5px;
+  top: 9.5px;
+  width: 245px;
+  height: 193px;
+  border-radius: 14.5px;
+  border: 1.5px solid #fff;
+}
+.select-c .ring {
+  left: 242px;
+  top: 14px;
+  width: 236px;
+  height: 184px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+}
+
+/* 2 — Line. The same panel, pulled in until the note is the picture.
+   Side crops dissolve into the black so the frame is a crop, not a slice. */
+.v2 { background: #0E0D0C; }
+.v2 .bezel {
+  position: absolute;
+  left: 50%;
+  top: -72px;
+  margin-left: -360px;
+  transform: scale(2);
+  transform-origin: top center;
+  box-shadow:
+    0 18px 28px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.16);
+}
+.v2 .veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg,
+    #0E0D0C 0%, rgba(14, 13, 12, 0) 18%,
+    rgba(14, 13, 12, 0) 82%, #0E0D0C 100%);
+}
+
+/* 3 — Face. Image selected, gallery white. */
+.v3 { background: #F4F4F2; }
+.v3 .bezel { position: absolute; left: 40px; top: 74px; }
+
+/* 4 — Page. A note, and the bezel opened over the middle of it. */
+.v4 { background: #F3EEE4; }
+.v4 .kicker,
+.v4 .lead,
+.v4 .tail {
+  position: absolute;
+  left: 76px;
+  margin: 0;
+  color: var(--ink);
+}
+.v4 .kicker {
+  top: 22px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 15px;
+  color: #8A847A;
+}
+.v4 .lead {
+  top: 42px;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 40px;
+  line-height: 1;
+  letter-spacing: -0.025em;
+}
+.v4 .bezel {
+  position: absolute;
+  left: 76px;
+  top: 108px;
+  transform: scale(0.9);
+  transform-origin: top left;
+}
+.v4 .tail {
+  top: 366px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* 5 — Name. The file, full strength, and the only caption the panel needs. */
+.v5 { background: #0E0D0C; }
+.v5 .bezel {
+  position: absolute;
+  left: 50%;
+  top: 54px;
+  margin-left: -360px;
+  transform: scale(1.28);
+  transform-origin: top center;
+  box-shadow:
+    0 18px 28px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.16);
+}
+.v5 .lockup {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #F3EFE6;
+}
+.v5 .lockup .mark {
+  height: 16px;
+  width: auto;
+  display: block;
+  filter: invert(1);
+}
+.v5 .lockup .name {
+  font-family: var(--display);
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.v5 .lockup .keys {
+  margin-left: 14px;
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: rgba(243, 239, 230, 0.55);
+}
+
+html[data-shot] body { background: transparent; }
+html[data-shot] .lab { width: auto; margin: 0; padding: 0; }
+html[data-shot] .mast,
+html[data-shot] .entry h2,
+html[data-shot] .entry .idea { display: none; }
+html[data-shot] .entry { display: contents; }
+html[data-shot] .stage { display: none; }
+html[data-shot] .stage.on { display: block; }
+
+html[data-frame="hero"],
+html[data-frame="hero"] body {
+  width: 800px;
+  height: 400px;
+  overflow: hidden;
+}
+
+html[data-frame="social"],
+html[data-frame="social"] body {
+  width: 640px;
+  height: 320px;
+  overflow: hidden;
+}
+
+html[data-frame="social"] .stage.on {
+  transform: scale(0.8);
+  transform-origin: top left;
+}
+
+html[data-shot="v1"] { background: var(--paper); }
+html[data-shot="v2"] { background: #0E0D0C; }
+html[data-shot="v3"] { background: #F4F4F2; }
+html[data-shot="v4"] { background: #F3EEE4; }
+html[data-shot="v5"] { background: #0E0D0C; }
