@@ -31,14 +31,15 @@ shoot() {
   fi
 }
 
-shoot 800 400 "$OUT/bezel.png" "file://$ROOT/shots.html?shot=bezel"
+# docs/screenshots/bezel.png is the capture already on main. This only
+# refreshes the menu, which is the picture the README adds under Use.
 shoot 800 460 "$OUT/menu.png" "file://$ROOT/shots.html?shot=menu"
 
 python3 - "$OUT" << 'PY'
 import struct, sys
 from pathlib import Path
 
-expected = {"bezel.png": (1600, 800), "menu.png": (1600, 920)}
+expected = {"menu.png": (1600, 920)}
 out = Path(sys.argv[1])
 bad = False
 for name, size in expected.items():

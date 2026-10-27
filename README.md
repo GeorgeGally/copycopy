@@ -41,7 +41,7 @@ Change it in Preferences.
   Preferences, and Quit. Preferences chooses how many pastes to keep:
   25, 50, 100, or 200. A new history starts at 50.
 
-![The bezel on a martini, a note, and a gadget file, with the note ringed](docs/screenshots/bezel.png)
+![The bezel open on a text item](docs/screenshots/bezel.png)
 
 ![The menu-bar menu and Preferences, with Pastes kept set to 50](docs/screenshots/menu.png)
 

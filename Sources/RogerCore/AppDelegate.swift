@@ -43,8 +43,8 @@ package final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate
         watcher.start()
     }
 
-    /// The bowtie from Resources, drawn by scripts/make-icon.swift. As a
-    /// template image macOS tints it for light and dark menu bars itself.
+    /// The bowtie from Resources, cut from the app icon by scripts/make-icon.py.
+    /// As a template image macOS tints it for light and dark menu bars itself.
     /// roger-shot has no bundle, so it hands the 1x file in and the @2x
     /// beside it is picked up the way a bundle would.
     package static func menuBarIcon(file: URL? = nil) -> NSImage? {
