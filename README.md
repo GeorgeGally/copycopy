@@ -38,13 +38,12 @@ Change it in Preferences.
 - Press Return to copy the selected item and paste it into the app you were
   using. Escape dismisses.
 - Click the menu-bar icon for the 20 most recent items, Clear history,
-  Preferences, and Quit.
+  Preferences, and Quit. Preferences chooses how many pastes to keep:
+  25, 50, 100, or 200. A new history starts at 50.
 
-![The bezel open on a text item](docs/screenshots/bezel.png)
+![The bezel on a martini, a note, and a gadget file, with the note ringed](docs/screenshots/bezel.png)
 
-![The menu-bar menu with text and image rows](docs/screenshots/menu.png)
-
-![I copy, over and out](docs/screenshots/copy-that.png)
+![The menu-bar menu and Preferences, with Pastes kept set to 50](docs/screenshots/menu.png)
 
 ## Support
 

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Roger · README shots</title>
+<link rel="stylesheet" href="../bezel-2/bezel.css">
+<link rel="stylesheet" href="shots.css">
+<script>
+  document.documentElement.dataset.shot = new URLSearchParams(location.search).get("shot") || "bezel";
+</script>
+</head>
+<body>
+  <div class="stage shot-bezel">
+    <div class="bezel">
+      <div class="surface">
+        <div class="ring"></div>
+        <div class="strip">
+          <div class="item image pos-l"><img src="martini.svg" alt=""></div>
+          <div class="item text pos-c"><p>Shaken, not stirred.<br>Carlton. Table one.<br>DB5 is out front.<br>Walther stays home.</p></div>
+          <div class="item file pos-r">
+            <img class="glyph" src="../bezel-2/assets/pdf.svg" alt="">
+            <span class="name">Little Nellie.pdf</span>
+          </div>
+        </div>
+        <p class="counter">2 of 6</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="stage menu">
+    <div class="panel" role="menu">
+      <div class="row">Open history&nbsp;&nbsp;⌃⌥⌘V</div>
+      <div class="sep"></div>
+      <div class="row image"><img src="martini.svg" alt=""></div>
+      <div class="row">Shaken, not stirred. Carlton. Table one.…</div>
+      <div class="row">Little Nellie.pdf</div>
+      <div class="row">Bring the cufflinks.</div>
+      <div class="row">git rebase --autosquash origin/main</div>
+      <div class="row">https://github.com/GeorgeGally/roger/rel…</div>
+      <div class="sep"></div>
+      <div class="row">Clear history</div>
+      <div class="row">Allow Pasting in Accessibility…</div>
+      <div class="row">Preferences…</div>
+      <div class="row">Quit Roger</div>
+    </div>
+
+    <div class="prefs">
+      <div class="titlebar">
+        <div class="close"></div>
+        <h2>Preferences</h2>
+      </div>
+      <div class="body">
+        <div class="field">⌃⌥⌘V</div>
+        <p class="caption">Control Option Command V</p>
+        <p class="kept">Pastes kept</p>
+        <div class="popup">
+          <span>50</span>
+          <svg width="9" height="14" viewBox="0 0 9 14" aria-hidden="true">
+            <path d="M1.2 5.2 L4.5 1.6 L7.8 5.2" fill="none" stroke="#6a6a6e" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/>
+            <path d="M1.2 8.8 L4.5 12.4 L7.8 8.8" fill="none" stroke="#6a6a6e" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
