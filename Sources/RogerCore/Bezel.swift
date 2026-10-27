@@ -21,8 +21,10 @@ package enum BezelMetrics {
     package static let shadowMargin: CGFloat = 64
     static let selectionSpring = Animation.spring(duration: 0.26, bounce: 0)
     /// Clear space between the item and the selection ring, then the stroke.
+    /// Strong is Increase Contrast: two points, still a line.
     static let selectionGap: CGFloat = 3
-    static let selectionStroke: CGFloat = 1.5
+    static let selectionStroke: CGFloat = 1
+    static let selectionStrokeStrong: CGFloat = 2
     /// How fast the ring leaves one item and settles on the next.
     static let selectionMove = Animation.easeOut(duration: 0.12)
 }
@@ -515,26 +517,36 @@ private struct SelectionRing: View {
     var offset: CGFloat
     @Environment(\.colorScheme) private var scheme
     @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.displayScale) private var displayScale
 
     /// Bowtie ink, and the warm plate behind it. Not a new brand colour.
     private static let ink = Color(red: 28 / 255, green: 27 / 255, blue: 25 / 255)
     private static let plate = Color(red: 230 / 255, green: 211 / 255, blue: 176 / 255)
 
     private var strong: Bool { contrast == .increased }
-    private var stroke: CGFloat { strong ? BezelMetrics.selectionStroke + 1 : BezelMetrics.selectionStroke }
+    private var stroke: CGFloat { strong ? BezelMetrics.selectionStrokeStrong : BezelMetrics.selectionStroke }
     private var color: Color {
         if scheme == .light { return strong ? .black : Self.ink }
         return strong ? .white : Self.plate
     }
 
     var body: some View {
-        let gap = BezelMetrics.selectionGap
-        let outer = BezelMetrics.itemRadius + gap + stroke
-        RoundedRectangle(cornerRadius: outer)
-            .strokeBorder(color, lineWidth: stroke)
-            .frame(width: BezelMetrics.itemSize.width + (gap + stroke) * 2,
-                   height: BezelMetrics.itemSize.height + (gap + stroke) * 2)
-            .offset(x: offset)
-            .accessibilityHidden(true)
+        GeometryReader { geometry in
+            let scale = max(displayScale, 1)
+            // Whole device pixels. A 1pt stroke that straddles a pixel is
+            // painted at half coverage and disappears at @1x.
+            let strokePx = max(1, (stroke * scale).rounded())
+            let gapPx = BezelMetrics.selectionGap * scale
+            let widthPx = (BezelMetrics.itemSize.width * scale + (gapPx + strokePx) * 2).rounded()
+            let heightPx = (BezelMetrics.itemSize.height * scale + (gapPx + strokePx) * 2).rounded()
+            let originX = ((geometry.size.width * scale - widthPx) / 2 + offset * scale).rounded()
+            let originY = ((geometry.size.height * scale - heightPx) / 2).rounded()
+            RoundedRectangle(cornerRadius: (BezelMetrics.itemRadius * scale + gapPx + strokePx) / scale)
+                .strokeBorder(color, lineWidth: strokePx / scale)
+                .frame(width: widthPx / scale, height: heightPx / scale)
+                .position(x: (originX + widthPx / 2) / scale,
+                          y: (originY + heightPx / 2) / scale)
+        }
+        .accessibilityHidden(true)
     }
 }

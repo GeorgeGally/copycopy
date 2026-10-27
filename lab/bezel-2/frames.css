@@ -57,8 +57,9 @@ html, body {
 
 /* Selection studies. Drawn beside the strip: the strip's edge mask
    clips an outline, so a full ring would lose its top and bottom.
-   (a) and (b) sit 3px off the item, 1.5px thick. The accent is the
-   warm plate the bowtie is shown on, not a new hue. */
+   (a) is the app: 1px, on whole pixels, 3px off the item, in the
+   warm plate the bowtie is shown on. (b) is the same ring in white
+   at the weight it was scored. */
 .ring { display: none; }
 .select-a .ring,
 .select-b .ring,
@@ -68,18 +69,22 @@ html, body {
   box-sizing: border-box;
   pointer-events: none;
 }
-.select-a .ring,
+.select-a .ring {
+  left: 238px;
+  top: 10px;
+  width: 244px;
+  height: 192px;
+  border-radius: 14px;
+  border: 1px solid #E6D3B0;
+}
 .select-b .ring {
   left: 237.5px;
   top: 9.5px;
   width: 245px;
   height: 193px;
   border-radius: 14.5px;
-  border-width: 1.5px;
-  border-style: solid;
+  border: 1.5px solid #fff;
 }
-.select-a .ring { border-color: #E6D3B0; }
-.select-b .ring { border-color: #fff; }
 .select-c .ring {
   left: 242px;
   top: 14px;

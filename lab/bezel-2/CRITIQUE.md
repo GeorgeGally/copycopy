@@ -76,19 +76,19 @@ George picked **Still**.
 
 The selected item was only larger and brighter. At thumbnail size that is just "the bright card", and Return pastes whatever is bright. It needs a mark. Three treatments on Still only, judged from the PNGs, including each hero reduced to 480px wide. No glow, no shadow, no thick box.
 
-The ring is a real rectangle, not a side rule. On the 1600px hero it spans 490×386 device pixels around the 472×368 item: 1.5px of stroke and 3px of glass on every side, top and bottom included.
+The ring is a real rectangle, not a side rule. On the 1600px hero it spans 488×384 device pixels around the 472×368 item: a 1px stroke (two solid pixels of `#E6D3B0`) and 3px of glass on every side, top and bottom included. At @1x that stroke is one solid pixel of the same plate, not a half-covered fringe.
 
 ### (a) Warm plate — 9
 
 `shots/v1-select-a-hero.png`, `shots/v1-select-a-social.png`
 
-1.5px stroke, 3px off the item, in the warm plate the bowtie is shown on (`#E6D3B0`). At 480px wide the stroke is still a warm pair of pixels (about L137 against glass at L36), with a dark pixel of gap on either side, and the top of the ring holds at about L180. It does not touch the type, and it is not the same white as the words, so the note and the mark stay separate. This is the one.
+1px stroke, on whole pixels, 3px off the item, in the warm plate the bowtie is shown on (`#E6D3B0`). Thinned from 1.5px after this score. At 480px wide the side is still warm (about L112 against glass at L36) and the top holds at about L136. It does not touch the type, and it is not the same white as the words. This is the one.
 
 ### (b) White — 8
 
 `shots/v1-select-b-hero.png`, `shots/v1-select-b-social.png`
 
-The same ring in white. Higher raw contrast (side about L161, top about L215) and it is unmistakable. It is also the same white as the mono, so at thumbnail size the top rule sits against the glyphs and the mark starts to read as part of the type. Nothing of the brand in it that the type did not already spend.
+The same offset in white, at the 1.5px weight it was scored. Higher raw contrast (side about L161, top about L215) and it is unmistakable. It is also the same white as the mono, so at thumbnail size the top rule sits against the glyphs and the mark starts to read as part of the type. Nothing of the brand in it that the type did not already spend.
 
 ### (c) Filled tile — 6
 
