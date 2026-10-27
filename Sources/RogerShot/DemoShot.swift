@@ -55,10 +55,15 @@ enum DemoShot: String {
     func seed(into store: HistoryStore, photo: URL?) {
         store.recordText("https://github.com/GeorgeGally/roger/releases")
         store.recordText("git rebase --autosquash origin/main")
-        let file = directory.appendingPathComponent("Launch checklist.pdf")
+        let file = directory.appendingPathComponent("Mission brief.pdf")
         FileManager.default.createFile(atPath: file.path, contents: Data())
         store.recordFiles([file])
-        store.recordText("Coffee with Sam at 11, then the design review.")
+        store.recordText("""
+        Pick up tux.
+        Return Aston Martin
+        (no bullet holes).
+        Martini: shaken.\
+        """)
         if let photo, let data = try? Data(contentsOf: photo) {
             store.recordPNG(data)
         }

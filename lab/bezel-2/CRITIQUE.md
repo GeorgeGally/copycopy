@@ -44,7 +44,7 @@ This is the README image. You get the object at its real proportion: one item br
 
 The same panel pulled in until the sentence is the picture.
 
-Six lines of the note, large enough that "Coffee with Sam at 11" still reads when the 1600px frame is shown around 500px wide. "2 of 5" survives at the bottom. The sides dissolve to black, so the crop does not slice a face in half. It is a poster of the clipboard, not a second colour of Still. A wall of mono is a specific taste; it is not pretty, and it is legible, which the old preview was not.
+Four lines of the note, large enough that "Return Aston Martin" still reads when the 1600px frame is shown around 500px wide. "2 of 5" survives at the bottom. The sides dissolve to black, so the crop does not slice a face in half. It is a poster of the clipboard, not a second colour of Still. A wall of mono is a specific taste; it is not pretty, and it is legible, which the old preview was not.
 
 ### 03 Face — 9
 
@@ -56,7 +56,7 @@ This is the one that stops a scroll. The selected card is the portrait, cover-cr
 
 The panel opened over a note. The diary line stays outside the glass.
 
-"Sam at eleven." is set large, left, in a serif, with "Thursday" above it and "Then the design review." below. The panel sits between them and does not cover either line. It says the same appointment twice, once as a page and once as the thing you copied, which is the point and also the risk: a hurried reader thinks the headline is the product. No button, no gradient, no glow. Useful if the README needs words and a picture together. Face is the stronger post.
+"Pick up tux." is set large, left, in a serif, with "Thursday" above it and "Martini: shaken." below. The panel sits between them and does not cover either line. It says the same appointment twice, once as a page and once as the thing you copied, which is the point and also the risk: a hurried reader thinks the headline is the product. No button, no gradient, no glow. Useful if the README needs words and a picture together. Face is the stronger post.
 
 ### 05 Name — 8
 
