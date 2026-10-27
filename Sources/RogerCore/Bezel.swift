@@ -424,7 +424,7 @@ private struct BezelView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     let inset = BezelMetrics.leadingInset(viewportWidth: geometry.size.width)
-                    ScrollView(.horizontal) {
+                    ScrollView(.horizontal, showsIndicators: false) {
                         LazyHStack(spacing: BezelMetrics.itemSpacing) {
                             ForEach(Array(0..<(state.items.count * 3)), id: \.self) { ring in
                                 let index = ring % state.items.count
@@ -447,7 +447,7 @@ private struct BezelView: View {
                         }
                     }
                     .scrollPosition(id: $scrolled, anchor: .center)
-                    .scrollIndicators(.hidden)
+                    .scrollIndicators(.never)
                     .scrollClipDisabled()
                     .mask(
                         HStack(spacing: 0) {
@@ -675,6 +675,7 @@ private final class StripOffsetProbe: NSView {
     override func layout() {
         super.layout()
         start()
+        if let s = scrollView() { s.hasHorizontalScroller = false; s.hasVerticalScroller = false }
     }
 
     /// The strip's scroll view. The probe sits in the scrolling content, but if
@@ -711,6 +712,8 @@ private final class StripOffsetProbe: NSView {
 
     private func start() {
         guard !started, let clip = scrollView()?.contentView else { return }
+        scrollView()?.hasHorizontalScroller = false
+        scrollView()?.hasVerticalScroller = false
         started = true
         clip.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(self, selector: #selector(clipBoundsChanged(_:)),
