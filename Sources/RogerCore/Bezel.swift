@@ -261,7 +261,7 @@ package final class BezelController: NSObject, NSWindowDelegate {
         let tint = NSView(frame: bounds)
         tint.wantsLayer = true
         tint.autoresizingMask = [.width, .height]
-        tint.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.4).cgColor
+        tint.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.55).cgColor
 
         // The hosting view sits beside the material, not inside it, so text is
         // drawn at full strength instead of being blended into the backdrop.
@@ -517,8 +517,11 @@ private struct BezelView: View {
     private func advance() {
         let count = state.items.count
         guard count > 1 else { return }
+        // Recentre on the middle copy only when the next step would leave the strip.
+        // Snapping mid-animation made the spring run from the old copy to the new
+        // one: the long slide after wrapping past 1 at speed.
         let settled = count + position % count
-        if settled != position {
+        if !(0..<(count * 3)).contains(position + state.direction), settled != position {
             scroll(to: settled, animated: false)
             position = settled
         }
@@ -628,7 +631,9 @@ private struct ClipCard: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(item.label)
         .accessibilityAddTraits(selected ? .isSelected : [])
-        .onAppear { loadThumbnail() }
+        // Cards are keyed by slot, not item: a new copy lands in a slot that is
+        // already on screen, so onAppear never fired and the image stayed blank.
+        .task(id: imageURL) { thumbnail = nil; loadThumbnail() }
         .onDisappear { thumbnail = nil }
     }
 
