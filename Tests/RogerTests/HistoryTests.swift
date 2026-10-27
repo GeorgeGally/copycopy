@@ -39,7 +39,7 @@ struct HistoryTests {
     @Test func keepsNewest200Items() {
         let path = directory()
         defer { try? FileManager.default.removeItem(at: path) }
-        let store = HistoryStore(directory: path)
+        let store = HistoryStore(directory: path, itemLimit: 200)
         for value in 0..<205 { store.recordText("Item \(value)") }
         #expect(store.items.count == 200)
         #expect(store.items.first?.content == .text("Item 204"))
@@ -204,7 +204,9 @@ struct HistoryTests {
         defer { UserDefaults.standard.removeObject(forKey: Shortcut.defaultsKey) }
         let hotKey = HotKey()
         defer { hotKey.unregister() }
-        let preferences = PreferencesController(hotKey: hotKey)
+        let path = directory()
+        defer { try? FileManager.default.removeItem(at: path) }
+        let preferences = PreferencesController(hotKey: hotKey, store: HistoryStore(directory: path))
         preferences.show()
         let window = try #require(NSApp.windows.first { $0.title == "Preferences" && $0.isVisible })
         defer { window.close() }
@@ -365,6 +367,133 @@ struct HistoryTests {
         #expect(try Data(contentsOf: legacyIndex) == saved)
         try HistoryStore.copyLegacyStore(from: legacy, to: destination)
         #expect(HistoryStore(directory: destination).items.count == 1)
+    }
+
+    @Test func historyDefaultsToFiftyAndTrimsAsSoonAsItIsLowered() throws {
+        let name = "RogerTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        let path = directory()
+        defer { try? FileManager.default.removeItem(at: path) }
+        let store = HistoryStore(directory: path, defaults: defaults)
+        #expect(store.itemLimit == HistoryLimit.standard)
+        #expect(HistoryLimit.standard == 50)
+        for value in 0..<60 { store.recordText("Item \(value)") }
+        #expect(store.items.count == 50)
+        #expect(store.items.first?.content == .text("Item 59"))
+        #expect(store.items.last?.content == .text("Item 10"))
+
+        store.setItemLimit(25)
+        #expect(store.itemLimit == 25)
+        #expect(store.items.count == 25)
+        #expect(store.items.first?.content == .text("Item 59"))
+        #expect(store.items.last?.content == .text("Item 35"))
+        #expect(HistoryLimit.stored(in: defaults) == 25)
+
+        let restored = HistoryStore(directory: path, defaults: defaults)
+        #expect(restored.itemLimit == 25)
+        #expect(restored.items.count == 25)
+
+        store.setItemLimit(10)
+        #expect(store.itemLimit == HistoryLimit.standard)
+        #expect(HistoryLimit.stored(in: defaults) == HistoryLimit.standard)
+    }
+
+    /// Keyboard steps follow the card under the ring, not the index left
+    /// behind when the strip was last opened.
+    @Test func stepContinuesFromTheCenteredItem() {
+        let state = BezelState()
+        state.items = (0..<30).map { HistoryItem(id: "\($0)", content: .text("Item \($0)"), copiedAt: Date()) }
+        state.place(0)
+        state.adoptCentered(22)
+        state.step(1)
+        #expect(state.selection == 23)
+        #expect(state.selected?.id == "23")
+        state.adoptCentered(29)
+        state.step(1)
+        #expect(state.selection == 0)
+        #expect(state.selected?.id == "0")
+    }
+
+    /// The ring sits on the centred card. Return used to paste items[selection],
+    /// and selection stayed at 0 when the strip was scrolled instead of stepped.
+    @Test func returnPastesTheCenteredItemAfterScrolling() throws {
+        let path = directory()
+        defer { try? FileManager.default.removeItem(at: path) }
+        let store = HistoryStore(directory: path, itemLimit: 200)
+        for value in 0..<30 { store.recordText("Item \(value)") }
+        let highlighted = try #require(store.items.dropFirst(22).first)
+        let bezel = BezelController(store: store)
+        var pasted: HistoryItem?
+        bezel.onSelect = { pasted = $0 }
+        bezel.show(items: store.items, frontApp: nil)
+        defer { bezel.dismiss() }
+
+        bezel.state.adoptCentered(22)
+        #expect(bezel.state.selection == 22)
+        #expect(bezel.state.selected?.id == highlighted.id)
+        try pressReturn(on: bezel)
+        #expect(pasted?.id == highlighted.id)
+        #expect(pasted?.id != store.items[0].id)
+    }
+
+    /// A copy while the bezel is open is inserted at the front. The highlight
+    /// stays on the same paste, and Return does not jump to the new first item.
+    @Test func returnKeepsTheHighlightedItemWhenHistoryChangesUnderIt() throws {
+        let path = directory()
+        defer { try? FileManager.default.removeItem(at: path) }
+        let store = HistoryStore(directory: path, itemLimit: 200)
+        for value in 0..<30 { store.recordText("Item \(value)") }
+        let bezel = BezelController(store: store)
+        var pasted: HistoryItem?
+        bezel.onSelect = { pasted = $0 }
+        bezel.show(items: store.items, frontApp: nil)
+        defer { bezel.dismiss() }
+
+        bezel.state.adoptCentered(22)
+        let highlighted = try #require(bezel.state.selected)
+        store.recordText("fresh")
+        #expect(store.items.first?.content == .text("fresh"))
+        #expect(bezel.state.selected?.id == highlighted.id)
+        #expect(bezel.state.selection == 23)
+
+        let kept = store.items.filter { $0.id == highlighted.id || $0.id == store.items[0].id }
+        bezel.state.replace(kept)
+        #expect(bezel.state.selected?.id == highlighted.id)
+
+        try pressReturn(on: bezel)
+        #expect(pasted?.id == highlighted.id)
+    }
+
+    @Test func preferencesTrimHistoryFromThePopup() throws {
+        let name = "RogerTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        let path = directory()
+        defer { try? FileManager.default.removeItem(at: path) }
+        let store = HistoryStore(directory: path, defaults: defaults)
+        for value in 0..<40 { store.recordText("Item \(value)") }
+        let hotKey = HotKey()
+        defer { hotKey.unregister() }
+        let preferences = PreferencesController(hotKey: hotKey, store: store)
+        preferences.show()
+        let window = try #require(NSApp.windows.first { $0.title == "Preferences" && $0.isVisible })
+        defer { window.close() }
+        let popup = try #require(window.contentView?.subviews.compactMap { $0 as? NSPopUpButton }.first)
+        #expect(popup.titleOfSelectedItem == "50")
+        popup.selectItem(withTitle: "25")
+        #expect(popup.sendAction(popup.action, to: popup.target))
+        #expect(store.itemLimit == 25)
+        #expect(store.items.count == 25)
+        #expect(store.items.first?.content == .text("Item 39"))
+    }
+
+    private func pressReturn(on bezel: BezelController) throws {
+        let event = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+                                                  windowNumber: bezel.window.windowNumber, context: nil,
+                                                  characters: "\r", charactersIgnoringModifiers: "\r",
+                                                  isARepeat: false, keyCode: UInt16(kVK_Return)))
+        #expect(bezel.window.performKeyEquivalent(with: event))
     }
 
     private func imageData() throws -> Data {

@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import Combine
 import ImageIO
 import SwiftUI
 
@@ -87,7 +88,10 @@ final class BezelRootView: NSView {
 @MainActor
 final class BezelState: ObservableObject {
     @Published var items: [HistoryItem] = []
-    @Published private(set) var selection = 0
+    /// The item Return pastes. Kept by identity: a new copy shifts the indexes
+    /// under a remembered position, and a scroll moves the card under the ring
+    /// without a keyboard step.
+    @Published private(set) var selectedID: String?
     /// Replaces the counter for a moment when Return could only copy.
     @Published var notice: String?
     /// Ticks whenever the selection moves, so the strip follows even when the
@@ -96,22 +100,54 @@ final class BezelState: ObservableObject {
     @Published private(set) var moves = 0
     private(set) var direction = 0
 
-    var selected: HistoryItem? { items.indices.contains(selection) ? items[selection] : nil }
+    var selection: Int {
+        guard let selectedID, let index = items.firstIndex(where: { $0.id == selectedID }) else { return 0 }
+        return index
+    }
+
+    var selected: HistoryItem? {
+        if let selectedID, let item = items.first(where: { $0.id == selectedID }) { return item }
+        return nil
+    }
 
     func step(_ direction: Int) {
         guard !items.isEmpty else { return }
+        let next = (selection + direction + items.count) % items.count
         self.direction = direction
         moves += 1
         withAnimation(BezelMetrics.selectionSpring) {
-            selection = (selection + direction + items.count) % items.count
+            selectedID = items[next].id
         }
     }
 
     func place(_ index: Int) {
+        direction = 0
+        selectedID = items.indices.contains(index) ? items[index].id : items.first?.id
+        moves += 1
+    }
+
+    /// The card in the centre slot. Scrolling lands here without a key step,
+    /// and Return pastes this item rather than whatever index was left behind.
+    func adoptCentered(_ index: Int) {
         guard items.indices.contains(index) else { return }
+        let id = items[index].id
+        guard id != selectedID else { return }
+        selectedID = id
+    }
+
+    /// The history gained a copy, dropped one, or moved a duplicate to the
+    /// front. The highlighted item stays highlighted.
+    func replace(_ updated: [HistoryItem]) {
+        guard updated.map(\.id) != items.map(\.id) else { return }
+        let kept = selectedID
+        items = updated
+        if let kept, updated.contains(where: { $0.id == kept }) {
+            selectedID = kept
+        } else {
+            selectedID = updated.first?.id
+        }
         direction = 0
         moves += 1
-        selection = index
     }
 }
 
@@ -155,6 +191,8 @@ package final class BezelController: NSObject, NSWindowDelegate {
     /// False while macOS has not granted Accessibility: Return then copies
     /// and says so instead of pretending to paste.
     var pasteAvailable = true
+
+    private var itemWatch: AnyCancellable?
 
     package init(store: HistoryStore) {
         let margin = BezelMetrics.shadowMargin
@@ -201,6 +239,12 @@ package final class BezelController: NSObject, NSWindowDelegate {
         panel.onStep = { [weak self] in self?.state.step($0) }
         panel.onSelect = { [weak self] in self?.select() }
         panel.onDismiss = { [weak self] in self?.dismiss() }
+        itemWatch = store.$items.dropFirst().sink { [weak self] items in
+            MainActor.assumeIsolated {
+                guard let self, self.isOpen else { return }
+                self.state.replace(items)
+            }
+        }
     }
 
     private static func roundedMask(radius: CGFloat) -> NSImage {
@@ -318,6 +362,9 @@ private struct BezelView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var scrolled: Int?
     @State private var position = 0
+    /// The strip position last asked for. Scroll events that are not this one
+    /// belong to the trackpad, and the centred card becomes the selection.
+    @State private var drivenTarget: Int?
     /// Horizontal offset of the selection ring while it eases onto the next item.
     @State private var ringOffset: CGFloat = 0
 
@@ -343,8 +390,16 @@ private struct BezelView: View {
                         .padding(.horizontal, max(BezelMetrics.inset, (geometry.size.width - BezelMetrics.itemSize.width) / 2))
                     }
                     .scrollPosition(id: $scrolled, anchor: .center)
+                    .scrollTargetBehavior(.viewAligned)
                     .scrollIndicators(.hidden)
                     .scrollClipDisabled()
+                    .onChange(of: scrolled) { _, id in
+                        guard drivenTarget == nil, let id, !state.items.isEmpty else { return }
+                        // The next key step continues from this card. Leaving
+                        // `position` at the last keyboard slot would jump back.
+                        position = id
+                        state.adoptCentered(id % state.items.count)
+                    }
                     .mask(
                         HStack(spacing: 0) {
                             LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing)
@@ -433,12 +488,24 @@ private struct BezelView: View {
     }
 
     private func scroll(to target: Int, animated: Bool) {
+        let previous = scrolled
+        drivenTarget = target
         if animated {
             withAnimation(BezelMetrics.selectionSpring) { scrolled = target }
         } else {
             var transaction = Transaction()
             transaction.disablesAnimations = true
             withTransaction(transaction) { scrolled = target }
+        }
+        let requested = target
+        DispatchQueue.main.asyncAfter(deadline: .now() + (animated ? 0.45 : 0.05)) {
+            guard drivenTarget == requested else { return }
+            drivenTarget = nil
+            // A scroll that has not moved yet is still reporting the previous
+            // card. Adopting that id would paste it after a list change.
+            guard let id = scrolled, id != previous, !state.items.isEmpty else { return }
+            position = id
+            state.adoptCentered(id % state.items.count)
         }
     }
 }

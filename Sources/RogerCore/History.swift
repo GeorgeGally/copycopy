@@ -33,6 +33,21 @@ package struct HistoryItem: Codable, Identifiable, Equatable {
     }
 }
 
+package enum HistoryLimit {
+    package static let choices = [25, 50, 100, 200]
+    package static let standard = 50
+    static let defaultsKey = "historyLength"
+
+    package static func stored(in defaults: UserDefaults = .standard) -> Int {
+        guard let value = defaults.object(forKey: defaultsKey) as? Int, choices.contains(value) else { return standard }
+        return value
+    }
+
+    static func store(_ value: Int, in defaults: UserDefaults = .standard) {
+        defaults.set(choices.contains(value) ? value : standard, forKey: defaultsKey)
+    }
+}
+
 @MainActor
 package final class HistoryStore: ObservableObject {
     static let textLimit = 2 * 1_024 * 1_024
@@ -40,7 +55,8 @@ package final class HistoryStore: ObservableObject {
     @Published package private(set) var items: [HistoryItem] = []
     @Published private(set) var errorMessage: String?
     let directory: URL
-    private let itemLimit: Int
+    package private(set) var itemLimit: Int
+    private let defaults: UserDefaults
     private let imageBudget: Int
     private let fileManager = FileManager.default
     private var indexURL: URL { directory.appendingPathComponent("history.json") }
@@ -50,10 +66,12 @@ package final class HistoryStore: ObservableObject {
         var items: [HistoryItem]
     }
 
-    package init(directory: URL? = nil, itemLimit: Int = 200, imageBudget: Int = 500 * 1_024 * 1_024) {
+    package init(directory: URL? = nil, itemLimit: Int? = nil, imageBudget: Int = 500 * 1_024 * 1_024,
+                 defaults: UserDefaults = .standard) {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         self.directory = directory ?? support.appendingPathComponent("Roger", isDirectory: true)
-        self.itemLimit = itemLimit
+        self.defaults = defaults
+        self.itemLimit = itemLimit ?? HistoryLimit.stored(in: defaults)
         self.imageBudget = imageBudget
         if directory == nil {
             for legacy in ["CopyOver", "CopyCopy"] {
@@ -129,6 +147,15 @@ package final class HistoryStore: ObservableObject {
 
     func clear() {
         save([])
+    }
+
+    /// Keeps the newest `limit` pastes and drops the rest immediately.
+    package func setItemLimit(_ limit: Int) {
+        let limit = HistoryLimit.choices.contains(limit) ? limit : HistoryLimit.standard
+        HistoryLimit.store(limit, in: defaults)
+        guard limit != itemLimit else { return }
+        itemLimit = limit
+        save(items)
     }
 
     func imageURL(for item: HistoryItem) -> URL? {

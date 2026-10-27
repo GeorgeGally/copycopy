@@ -8,7 +8,7 @@ package final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate
     private lazy var watcher = ClipboardWatcher(store: store)
     private lazy var bezel = BezelController(store: store)
     private let hotKey = HotKey()
-    private lazy var preferences = PreferencesController(hotKey: hotKey)
+    private lazy var preferences = PreferencesController(hotKey: hotKey, store: store)
     private var statusItem: NSStatusItem?
     private var pasteTarget: NSRunningApplication?
     private var hotKeyError: String?
