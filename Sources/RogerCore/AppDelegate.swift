@@ -8,6 +8,7 @@ package final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate
     private lazy var watcher = ClipboardWatcher(store: store)
     private lazy var bezel = BezelController(store: store)
     private let hotKey = HotKey()
+    private let launchAtLogin = LaunchAtLogin()
     private lazy var preferences = PreferencesController(hotKey: hotKey, store: store)
     private var statusItem: NSStatusItem?
     private var pasteTarget: NSRunningApplication?
@@ -41,6 +42,7 @@ package final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate
             hotKeyError = "Shortcut unavailable. Quit another app using \(hotKey.shortcut.title) and reopen Roger."
         }
         watcher.start()
+        launchAtLogin.registerOnLaunch()
     }
 
     /// The bowtie from Resources, cut from the app icon by scripts/make-icon.py.
@@ -96,6 +98,15 @@ package final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate
         }
         menu.addItem(.separator())
         add("Clear history", action: #selector(clearHistory), to: menu).isEnabled = !store.items.isEmpty
+        let login = add("Open at Login", action: #selector(toggleLaunchAtLogin), to: menu)
+        login.state = launchAtLogin.isOn ? .on : .off
+        if Bundle.main.bundleURL.pathExtension != "app" {
+            login.isEnabled = false
+            login.toolTip = "Only the built Roger.app can add itself to Login Items."
+        }
+        if launchAtLogin.state == .needsApproval {
+            add("Allow Roger at Login in System Settings…", action: #selector(openLoginItemsSettings), to: menu)
+        }
         add("Allow Pasting in Accessibility…", action: #selector(openAccessibilitySettings), to: menu)
         add("Preferences…", action: #selector(openPreferences), to: menu)
         add("Quit Roger", action: #selector(quit), to: menu)
@@ -245,6 +256,21 @@ package final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate
             up?.postToPid(target.processIdentifier)
             PasteLog.write("posted Command-V created=\(down != nil && up != nil) toPid=\(target.processIdentifier) \(Self.describe(target))")
         }
+    }
+
+    @objc private func toggleLaunchAtLogin() {
+        if launchAtLogin.isOn {
+            launchAtLogin.turnOff()
+        } else {
+            launchAtLogin.turnOn()
+            // Registration is pending until the user allows it in Settings.
+            if launchAtLogin.state == .needsApproval { openLoginItemsSettings() }
+        }
+    }
+
+    @objc private func openLoginItemsSettings() {
+        guard let url = LaunchAtLogin.settingsURL else { return }
+        DispatchQueue.main.async { NSWorkspace.shared.open(url) }
     }
 
     @objc private func openAccessibilitySettings() {

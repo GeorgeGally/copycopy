@@ -15,6 +15,8 @@ Download `Roger.app` from the [Releases page](https://github.com/GeorgeGally/rog
 2. Open it. Roger lives in the menu bar and does not appear in the Dock.
 3. When macOS asks for Accessibility, turn it on. Roger needs it to paste for
    you; until then Return only copies.
+4. Roger adds itself to Login Items on first launch, so it is running after a
+   restart. Turn that off from the menu-bar menu with Open at Login.
 
 Accessibility is the only permission Roger asks for, and only to press
 Command + V in the app you came from. It never asks for Screen Recording,
@@ -38,8 +40,8 @@ Change it in Preferences.
 - Press Return to copy the selected item and paste it into the app you were
   using. Escape dismisses.
 - Click the menu-bar icon for the 20 most recent items, Clear history,
-  Preferences, and Quit. Preferences chooses how many pastes to keep:
-  25, 50, 100, or 200. A new history starts at 50.
+  Open at Login, Preferences, and Quit. Preferences chooses how many pastes
+  to keep: 25, 50, 100, or 200. A new history starts at 50.
 
 ![The bezel open on a text item](docs/screenshots/bezel.png)
 
