@@ -1,4 +1,5 @@
 .build/
 dist/
+tmp-demo/
 .DS_Store
 *.xcuserstate
