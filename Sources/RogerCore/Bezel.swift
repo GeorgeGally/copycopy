@@ -419,7 +419,7 @@ private struct BezelView: View {
             VStack(spacing: BezelMetrics.counterGap) {
                 if state.items.isEmpty {
                     Text("Nothing copied yet")
-                        .font(.system(size: 16, weight: .medium))
+                        .font(.custom("Helvetica", size: 16))
                         .foregroundStyle(.white.opacity(0.5))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
@@ -472,8 +472,7 @@ private struct BezelView: View {
                 }
                 Text(state.notice ?? (state.items.isEmpty ? "0 of 0" : "\(state.selection + 1) of \(state.items.count)"))
                     // The same item the ring frames and Return pastes.
-                    .font(.system(size: 12, weight: .medium))
-                    .monospacedDigit()
+                    .font(.custom("Helvetica", size: 12))
                     .foregroundStyle(.white.opacity(0.5))
                     .frame(height: BezelMetrics.counterHeight)
                     .contentTransition(.numericText())
@@ -593,7 +592,7 @@ private struct ClipCard: View {
                 // Centred both ways; the slight lift offsets the line spacing
                 // and descenders that make mathematically centred text sit low.
                 Text(String(text.prefix(1_200)))
-                    .font(.system(size: 15, weight: .regular, design: .monospaced))
+                    .font(.custom("Helvetica", size: 15))
                     .lineSpacing(4)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.white.opacity(0.94))
@@ -617,7 +616,7 @@ private struct ClipCard: View {
                             .resizable().frame(width: 64, height: 64)
                     }
                     Text(item.label)
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.custom("Helvetica", size: 14))
                         .foregroundStyle(.white.opacity(0.94))
                         .lineLimit(2).multilineTextAlignment(.center)
                 }
